@@ -22,8 +22,10 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function login(codigo: string, senha: string) {
     const { data } = await api.post("/auth/login", {
@@ -37,7 +39,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(me.data);
   }
 
-  
   function logout() {
     localStorage.removeItem("token");
     setUser(null);
@@ -46,13 +47,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   async function loadUser() {
     const token = localStorage.getItem("token");
 
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data } = await api.get("/auth/me");
       setUser(data);
     } catch {
       logout();
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -62,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
+      {loading ? <div>Carregando...</div> : children}
     </AuthContext.Provider>
   );
 }

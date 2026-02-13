@@ -1,33 +1,87 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../api/api";
+
+interface Categoria {
+  id: string;
+  nome: string;
+}
 
 export default function Categorias() {
-  const [categorias, setCategorias] = useState([
-    { id: 1, nome: "Roupas" },
-    { id: 2, nome: "Calçados" }
-  ]);
-
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [novaCategoria, setNovaCategoria] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mensagem, setMensagem] = useState("");
 
-  function adicionarCategoria() {
-    if (!novaCategoria) return;
-
-    const nova = {
-      id: Date.now(),
-      nome: novaCategoria
-    };
-
-    setCategorias([...categorias, nova]);
-    setNovaCategoria("");
+  async function buscarCategorias() {
+    try {
+      setLoading(true);
+      const response = await api.get("/categorias");
+      setCategorias(response.data);
+    } catch (error) {
+      setMensagem("Erro ao carregar categorias.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function removerCategoria(id: number) {
-    setCategorias(categorias.filter(c => c.id !== id));
+  async function adicionarCategoria() {
+    if (!novaCategoria.trim()) return;
+
+    try {
+      setLoading(true);
+
+      const response = await api.post("/categorias", {
+        nome: novaCategoria,
+      });
+
+      // Atualiza sem precisar buscar tudo de novo
+      setCategorias((prev) => [...prev, response.data]);
+      setNovaCategoria("");
+      setMensagem("Categoria criada com sucesso!");
+    } catch (error) {
+      setMensagem("Erro ao criar categoria.");
+    } finally {
+      setLoading(false);
+
+      // limpa mensagem depois de 3s
+      setTimeout(() => setMensagem(""), 3000);
+    }
   }
+
+  async function removerCategoria(id: string) {
+    const confirmar = window.confirm("Tem certeza que deseja excluir?");
+    if (!confirmar) return;
+
+    try {
+      setLoading(true);
+      await api.delete(`/categorias/${id}`);
+
+      setCategorias((prev) => prev.filter((c) => c.id !== id));
+      setMensagem("Categoria removida com sucesso!");
+    } catch (error) {
+      setMensagem("Erro ao remover categoria.");
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMensagem(""), 3000);
+    }
+  }
+
+  useEffect(() => {
+    buscarCategorias();
+  }, []);
 
   return (
-    <div className="p-6">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Categorias</h1>
 
+      {/* Mensagem */}
+      {mensagem && (
+        <div className="mb-4 p-3 bg-blue-100 text-blue-700 rounded">
+          {mensagem}
+        </div>
+      )}
+
+      {/* Formulário */}
       <div className="flex gap-2 mb-6">
         <input
           type="text"
@@ -38,12 +92,19 @@ export default function Categorias() {
         />
         <button
           onClick={adicionarCategoria}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={loading}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          Adicionar
+          {loading ? "Salvando..." : "Adicionar"}
         </button>
       </div>
 
+      {/* Loading */}
+      {loading && (
+        <p className="mb-4 text-gray-500">Carregando...</p>
+      )}
+
+      {/* Tabela */}
       <table className="w-full bg-white shadow rounded">
         <thead className="bg-gray-100">
           <tr>
@@ -65,6 +126,14 @@ export default function Categorias() {
               </td>
             </tr>
           ))}
+
+          {categorias.length === 0 && !loading && (
+            <tr>
+              <td colSpan={2} className="p-4 text-center text-gray-500">
+                Nenhuma categoria cadastrada.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
