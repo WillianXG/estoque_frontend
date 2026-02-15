@@ -15,6 +15,8 @@ export default function Sidebar({ isOpen, onClose }: Props) {
     { path: "/vendas", name: "Vendas" },
     { path: "/vendedoras", name: "Vendedoras" },
     { path: "/pdv", name: "PDV" },
+    { path: "/estoque", name: "Estoque" },
+    { path: "/MovimentacaoEstoque", name: "Movimentação de Estoque" },
   ];
 
   return (

@@ -11,6 +11,8 @@ import Vendedoras from "./pages/Vendedoras";
 import Dashboard from "./pages/Dashboard"; // sua página real de dashboard
 import PDV from "./pages/PDV";
 import Carrinho from "./pages/Carrinho";
+import Estoque from "./pages/Estoque";
+import MovimentacaoPage from "./pages/MovimentacaoEstoque";
 
 function App() {
   return (
@@ -35,6 +37,8 @@ function App() {
             <Route path="/vendedoras" element={<Vendedoras />} />
             <Route path="/pdv" element={<PDV />} /> 
             <Route path="/pdv/carrinho" element={<Carrinho />} />
+            <Route path="/estoque" element={<Estoque />} />
+            <Route path="/MovimentacaoEstoque" element={<MovimentacaoPage />} />
             <Route path="*" element={<Dashboard />} />
           </Route>
         </Routes>

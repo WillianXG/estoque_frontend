@@ -66,9 +66,7 @@ const Card: React.FC<CardProps> = ({
           className="w-full max-h-60 object-contain rounded-xl mb-4 border border-[#812C65]/40 bg-white/5"
         />
 
-        <h3 className="font-bold text-lg tracking-wide">
-          {nome}
-        </h3>
+        <h3 className="font-bold text-lg tracking-wide">{nome}</h3>
 
         <p className="text-[#E8B7D4] font-extrabold mt-1 text-lg">
           {precoFormatado}
