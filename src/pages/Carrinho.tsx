@@ -64,7 +64,7 @@ export default function Carrinho() {
 
             <button
                 onClick={finalizarVenda}
-                className="w-full bg-green-600 text-white mt-4 p-3 rounded-xl"
+                className="w-full bg-[#954a79] text-white mt-4 p-3 rounded-xl"
             >
                 Finalizar Venda
             </button>

@@ -90,7 +90,7 @@ export default function Vendedoras() {
 
       <button
         onClick={() => setModalVendedora({ id: "", nome: "", telefone: "", codigo: "", role: "vendedora" })}
-        className="mb-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        className="mb-4 bg-[#954a79] text-white px-4 py-2 rounded hover:bg-[#812c65]"
       >
         + Nova Vendedora
       </button>

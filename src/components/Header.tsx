@@ -18,45 +18,48 @@ export default function Header({ toggleSidebar }: Props) {
   }, []);
 
   function toggleDarkMode() {
-    if (dark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    }
-    setDark(!dark);
+    const isDark = !dark;
+    document.documentElement.classList.toggle("dark", isDark);
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    setDark(isDark);
   }
 
   return (
-    <header className="bg-white dark:bg-gray-900 shadow px-6 py-4 flex justify-between items-center transition">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={toggleSidebar}
-          className="md:hidden text-gray-700 dark:text-white"
-        >
-          ☰
-        </button>
+    <header className="bg-[#590C42] dark:bg-[#4B1F59] border-b border-[#812C65]/40 shadow-md">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
 
-        <h1 className="text-lg font-semibold text-gray-700 dark:text-gray-200">
-          Sistema de Estoque
-        </h1>
-      </div>
+        {/* Navegação */}
+        <nav className="flex items-center gap-4" aria-label="Menu principal">
+          <button
+            onClick={toggleSidebar}
+            className="md:hidden text-white text-2xl hover:text-[#E8B7D4] transition-colors"
+            aria-label="Abrir menu lateral"
+          >
+            ☰
+          </button>
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={toggleDarkMode}
-          className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-lg transition"
-        >
-          {dark ? "🌙" : "☀️"}
-        </button>
+          <h1 className="text-xl font-bold tracking-wide text-white">
+            Sistema de Estoque
+          </h1>
+        </nav>
 
-        <button
-          onClick={logout}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
-        >
-          Sair
-        </button>
+        {/* Ações do usuário */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={toggleDarkMode}
+            className="bg-[#812C65] hover:bg-[#954A79] text-white px-3 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+            aria-label="Alternar tema"
+          >
+            {dark ? "🌙" : "☀️"}
+          </button>
+
+          <button
+            onClick={logout}
+            className="bg-[#E8B7D4] hover:bg-[#D39AC1] text-[#4B1F59] font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            Sair
+          </button>
+        </div>
       </div>
     </header>
   );

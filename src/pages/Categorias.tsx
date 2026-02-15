@@ -160,7 +160,7 @@ export default function Categorias() {
                 setModalSub({ open: true, categoria: cat });
                 buscarSubcategorias(cat.id);
               }}
-              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 mt-2"
+              className="bg-[#954a79] text-white px-3 py-1 rounded hover:bg-green-700 mt-2"
             >
               Gerenciar Subcategorias
             </button>
@@ -203,7 +203,7 @@ export default function Categorias() {
               />
               <button
                 onClick={() => modalSub.categoria && adicionarSubcategoria(modalSub.categoria.id)}
-                className="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700"
+                className="bg-[#954a79] text-white px-3 py-2 rounded hover:bg-green-700"
               >
                 Adicionar
               </button>
