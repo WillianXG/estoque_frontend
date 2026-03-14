@@ -6,11 +6,10 @@ interface Movimentacao {
   produto_nome: string;
   local: "arara" | "deposito";
   tipo: "entrada" | "saida" | "ajuste";
-  quantidade_modificada: number; // agora vem do backend
   quantidade_anterior: number;
   quantidade_nova: number;
   usuario_id: number;
-  usuario_nome?: string; 
+  usuario_nome?: string;
   data: string;
 }
 
@@ -18,6 +17,7 @@ export default function MovimentacaoPage() {
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtro, setFiltro] = useState("");
+  const [selected, setSelected] = useState<Movimentacao | null>(null);
 
   useEffect(() => {
     fetchMovimentacoes();
@@ -27,12 +27,13 @@ export default function MovimentacaoPage() {
     setLoading(true);
     try {
       const res = await api.get("/movimentacoes-estoque");
-      let dados: Movimentacao[] = res.data;
 
-      // Ordena do mais antigo para o mais recente (para consistência)
-      dados.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+      const dados: Movimentacao[] = res.data.sort(
+        (a: Movimentacao, b: Movimentacao) =>
+          new Date(b.data).getTime() - new Date(a.data).getTime()
+      );
 
-      setMovimentacoes(dados.reverse()); // mais recentes no topo
+      setMovimentacoes(dados);
     } catch (err) {
       console.error("Erro ao buscar movimentações", err);
     } finally {
@@ -46,6 +47,7 @@ export default function MovimentacaoPage() {
 
   return (
     <main className="min-h-screen p-4 sm:p-6 bg-gray-50 dark:bg-[#2A102D] flex flex-col gap-4">
+
       <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-pink-300">
         Movimentações de Estoque
       </h1>
@@ -55,70 +57,192 @@ export default function MovimentacaoPage() {
         placeholder="Pesquisar produto..."
         value={filtro}
         onChange={(e) => setFiltro(e.target.value)}
-        className="w-full sm:max-w-md p-2 rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:text-white text-sm sm:text-base"
+        className="w-full sm:max-w-md p-2 rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
       />
 
-      <div className="overflow-x-auto mt-2">
-        <table className="w-full border-collapse text-left min-w-[500px] sm:min-w-full text-sm sm:text-base">
+      {loading && (
+        <p className="text-gray-900 dark:text-white">Carregando...</p>
+      )}
+
+      {!loading && movimentacoesFiltradas.length === 0 && (
+        <p className="text-gray-900 dark:text-white">
+          Nenhuma movimentação encontrada.
+        </p>
+      )}
+
+      {/* MOBILE */}
+      <div className="sm:hidden flex flex-col gap-2">
+
+        {movimentacoesFiltradas.map((m) => {
+
+          const dataFormatada = new Date(m.data).toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          return (
+            <div
+              key={m.id}
+              className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col gap-1"
+            >
+
+              {/* Produto */}
+              <div className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                {m.produto_nome}
+              </div>
+
+              {/* Linha compacta */}
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300">
+
+                <span>
+                  {m.quantidade_anterior ?? 0} → {m.quantidade_nova ?? 0}
+                </span>
+
+                <span className="capitalize">
+                  {m.tipo}
+                </span>
+
+                <span className="truncate max-w-[90px]">
+                  {m.usuario_nome ?? `ID ${m.usuario_id}`}
+                </span>
+
+                <span>
+                  {dataFormatada}
+                </span>
+
+              </div>
+
+              <button
+                onClick={() => setSelected(m)}
+                className="text-xs text-purple-600 dark:text-pink-400 mt-1 text-right"
+              >
+                detalhes
+              </button>
+
+            </div>
+          );
+        })}
+
+      </div>
+
+      {/* DESKTOP */}
+      <div className="hidden sm:block overflow-x-auto rounded-lg shadow">
+
+        <table className="w-full border-collapse text-left text-sm sm:text-base">
+
           <thead className="bg-purple-200 dark:bg-gray-800">
             <tr>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Produto</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Local</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Antes → Depois</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Tipo</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Autor</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Data / Hora</th>
+              <th className="p-3 text-gray-900 dark:text-pink-300">Produto</th>
+              <th className="p-3 text-gray-900 dark:text-pink-300">Local</th>
+              <th className="p-3 text-gray-900 dark:text-pink-300">Antes → Depois</th>
+              <th className="p-3 text-gray-900 dark:text-pink-300">Tipo</th>
+              <th className="p-3 text-gray-900 dark:text-pink-300">Autor</th>
+              <th className="p-3 text-gray-900 dark:text-pink-300">Data / Hora</th>
             </tr>
           </thead>
+
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center p-4 text-gray-900 dark:text-white">
-                  Carregando...
-                </td>
-              </tr>
-            ) : movimentacoesFiltradas.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center p-4 text-gray-900 dark:text-white">
-                  Nenhuma movimentação encontrada.
-                </td>
-              </tr>
-            ) : (
-              movimentacoesFiltradas.map((m) => {
-                const dataFormatada = new Date(m.data).toLocaleString("pt-BR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
 
-                // Cor do texto de acordo com tipo
-                let tipoClass = "text-gray-900 dark:text-white";
-                if (m.tipo === "entrada") tipoClass = "text-green-600 dark:text-green-400";
-                else if (m.tipo === "saida") tipoClass = "text-red-600 dark:text-red-400";
-                else if (m.tipo === "ajuste") tipoClass = "text-yellow-600 dark:text-yellow-400";
+            {movimentacoesFiltradas.map((m) => {
 
-                return (
-                  <tr
-                    key={m.id}
-                    className="border-b border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{m.produto_nome}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white capitalize">{m.local}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">
-                      {m.quantidade_anterior} → {m.quantidade_nova}
-                    </td>
-                    <td className={`p-2 sm:p-3 font-semibold ${tipoClass} capitalize`}>{m.tipo}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{m.usuario_nome ?? m.usuario_id}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{dataFormatada}</td>
-                  </tr>
-                );
-              })
-            )}
+              const dataFormatada = new Date(m.data).toLocaleString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+              return (
+                <tr
+                  key={m.id}
+                  className="border-b border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-gray-700"
+                >
+
+                  <td className="p-3 text-gray-900 dark:text-white">
+                    {m.produto_nome}
+                  </td>
+
+                  <td className="p-3 text-gray-900 dark:text-white capitalize">
+                    {m.local}
+                  </td>
+
+                  <td className="p-3 text-gray-900 dark:text-white">
+                    {m.quantidade_anterior ?? 0} → {m.quantidade_nova ?? 0}
+                  </td>
+
+                  <td className="p-3 text-gray-900 dark:text-white capitalize">
+                    {m.tipo}
+                  </td>
+
+                  <td className="p-3 text-gray-900 dark:text-white">
+                    {m.usuario_nome ?? `ID ${m.usuario_id}`}
+                  </td>
+
+                  <td className="p-3 text-gray-900 dark:text-white">
+                    {dataFormatada}
+                  </td>
+
+                </tr>
+              );
+            })}
+
           </tbody>
+
         </table>
+
       </div>
+
+      {/* MODAL DETALHES */}
+
+      {selected && (
+
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md flex flex-col gap-3">
+
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              {selected.produto_nome}
+            </h2>
+
+            <p className="text-gray-700 dark:text-gray-300">
+              <strong>Local:</strong> {selected.local}
+            </p>
+
+            <p className="text-gray-700 dark:text-gray-300">
+              <strong>Tipo:</strong> {selected.tipo}
+            </p>
+
+            <p className="text-gray-700 dark:text-gray-300">
+              <strong>Quantidade:</strong>{" "}
+              {selected.quantidade_anterior} → {selected.quantidade_nova}
+            </p>
+
+            <p className="text-gray-700 dark:text-gray-300">
+              <strong>Autor:</strong>{" "}
+              {selected.usuario_nome ?? `ID ${selected.usuario_id}`}
+            </p>
+
+            <p className="text-gray-700 dark:text-gray-300">
+              <strong>Data:</strong>{" "}
+              {new Date(selected.data).toLocaleString("pt-BR")}
+            </p>
+
+            <button
+              onClick={() => setSelected(null)}
+              className="mt-4 bg-purple-600 text-white p-2 rounded"
+            >
+              Fechar
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
     </main>
   );
 }

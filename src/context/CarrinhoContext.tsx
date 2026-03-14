@@ -5,8 +5,13 @@ export interface Produto {
   nome: string;
   preco: number;
   imagem_url: string;
+
   quantidade: number;
+
   estoque: number;
+
+  quantidade_arara: number;
+  quantidade_deposito: number;
 }
 
 interface CarrinhoContextType {
@@ -21,13 +26,17 @@ interface CarrinhoContextType {
 const CarrinhoContext = createContext<CarrinhoContextType | undefined>(undefined);
 
 export function CarrinhoProvider({ children }: { children: ReactNode }) {
+
   const [carrinho, setCarrinho] = useState<Produto[]>([]);
 
-  function adicionar(produto: Produto): boolean {
-    const existe = carrinho.find(p => p.id === produto.id);
 
-    if (existe) {
-      if (existe.quantidade >= produto.estoque) {
+  function adicionar(produto: Produto): boolean {
+
+    const item = carrinho.find(p => p.id === produto.id);
+
+    if (item) {
+
+      if (item.quantidade >= item.estoque) {
         return false;
       }
 
@@ -46,12 +55,19 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    setCarrinho(prev => [...prev, { ...produto, quantidade: 1 }]);
+    setCarrinho(prev => [
+      ...prev,
+      { ...produto, quantidade: 1 }
+    ]);
+
     return true;
   }
 
+
   function aumentar(id: number): boolean {
+
     const item = carrinho.find(p => p.id === id);
+
     if (!item) return false;
 
     if (item.quantidade >= item.estoque) {
@@ -69,7 +85,9 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
+
   function diminuir(id: number) {
+
     setCarrinho(prev =>
       prev
         .map(item =>
@@ -79,15 +97,23 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
         )
         .filter(item => item.quantidade > 0)
     );
+
   }
+
 
   function remover(id: number) {
+
     setCarrinho(prev => prev.filter(p => p.id !== id));
+
   }
 
+
   function limpar() {
+
     setCarrinho([]);
+
   }
+
 
   return (
     <CarrinhoContext.Provider
@@ -97,18 +123,25 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
         remover,
         limpar,
         aumentar,
-        diminuir,
+        diminuir
       }}
     >
       {children}
     </CarrinhoContext.Provider>
   );
+
 }
 
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCarrinho() {
+
   const context = useContext(CarrinhoContext);
+
   if (!context) {
     throw new Error("useCarrinho must be used inside CarrinhoProvider");
   }
+
   return context;
+
 }

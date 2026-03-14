@@ -116,51 +116,55 @@ export default function Categorias() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Gerenciar Categorias</h1>
+    <main className="min-h-screen p-6 bg-gray-50 dark:bg-[#1a0a1d] transition-colors duration-300">
+      <header className="mb-6">
+        <h1 className="text-3xl sm:text-4xl font-bold text-[#590C42] dark:text-[#E8B7D4]">Gerenciar Categorias</h1>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-1">
+          Crie, edite e gerencie categorias e subcategorias
+        </p>
+      </header>
 
       {mensagem && (
         <div className="mb-4 p-3 bg-blue-100 text-blue-700 rounded">{mensagem}</div>
       )}
 
-      {/* Criar nova categoria */}
+      {/* Adicionar nova categoria */}
       <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <input
           type="text"
           placeholder="Nova categoria"
           value={novaCategoria}
           onChange={(e) => setNovaCategoria(e.target.value)}
-          className="border rounded px-3 py-2 flex-1"
+          className="border rounded px-3 py-2 flex-1 dark:bg-gray-800 dark:text-white"
         />
         <button
           onClick={adicionarCategoria}
           disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="bg-[#812C65] hover:bg-[#954A79] text-white px-4 py-2 rounded disabled:opacity-50 transition-colors duration-300"
         >
           Adicionar Categoria
         </button>
       </div>
 
-      {/* Grid responsivo de categorias */}
+      {/* Grid de categorias */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {categorias.map((cat) => (
-          <div key={cat.id} className="bg-white shadow rounded-lg p-4 flex flex-col">
+          <div key={cat.id} className="bg-white dark:bg-gray-800 shadow rounded-xl p-4 flex flex-col">
             <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold text-gray-800">{cat.nome}</h2>
+              <h2 className="font-semibold text-gray-800 dark:text-gray-100">{cat.nome}</h2>
               <button
                 onClick={() => removerCategoria(cat.id)}
-                className="text-red-500 hover:text-red-700 text-sm"
+                className="text-red-500 hover:text-red-700 text-sm transition-colors duration-300"
               >
                 Excluir
               </button>
             </div>
-
             <button
               onClick={() => {
                 setModalSub({ open: true, categoria: cat });
                 buscarSubcategorias(cat.id);
               }}
-              className="bg-[#954a79] text-white px-3 py-1 rounded hover:bg-green-700 mt-2"
+              className="bg-[#954a79] hover:bg-[#812C65] text-white px-3 py-1 rounded mt-2 transition-colors duration-300"
             >
               Gerenciar Subcategorias
             </button>
@@ -168,42 +172,39 @@ export default function Categorias() {
         ))}
       </div>
 
-      {/* Modal de Subcategorias */}
+      {/* Modal de subcategorias */}
       {modalSub.open && modalSub.categoria && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 relative max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-96 relative max-h-[90vh] overflow-y-auto shadow-lg">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
               Subcategorias de {modalSub.categoria.nome}
             </h2>
 
-            {/* Lista de subcategorias */}
+            {/* Lista subcategorias */}
             {subcategorias.map((sub) => (
-              <div
-                key={sub.id}
-                className="flex justify-between items-center border-b py-1"
-              >
-                <span>{sub.nome}</span>
+              <div key={sub.id} className="flex justify-between items-center border-b py-1">
+                <span className="text-gray-700 dark:text-gray-200">{sub.nome}</span>
                 <button
                   onClick={() => removerSubcategoria(sub.id)}
-                  className="text-red-500 hover:text-red-700 text-xs"
+                  className="text-red-500 hover:text-red-700 text-xs transition-colors duration-300"
                 >
                   Excluir
                 </button>
               </div>
             ))}
 
-            {/* Criar nova subcategoria */}
+            {/* Adicionar nova subcategoria */}
             <div className="flex gap-2 mt-4">
               <input
                 type="text"
                 placeholder="Nova subcategoria"
                 value={novaSubcategoria}
                 onChange={(e) => setNovaSubcategoria(e.target.value)}
-                className="border rounded px-3 py-2 flex-1"
+                className="border rounded px-3 py-2 flex-1 dark:bg-gray-700 dark:text-white"
               />
               <button
                 onClick={() => modalSub.categoria && adicionarSubcategoria(modalSub.categoria.id)}
-                className="bg-[#954a79] text-white px-3 py-2 rounded hover:bg-green-700"
+                className="bg-[#954a79] hover:bg-[#812C65] text-white px-3 py-2 rounded transition-colors duration-300"
               >
                 Adicionar
               </button>
@@ -211,13 +212,13 @@ export default function Categorias() {
 
             <button
               onClick={() => setModalSub({ open: false, categoria: null })}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors duration-300"
             >
               ✕
             </button>
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

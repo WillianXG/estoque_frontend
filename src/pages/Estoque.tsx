@@ -23,6 +23,12 @@ export default function EstoquePage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [estoques, setEstoques] = useState<Estoque[]>([]);
   const [modalProduto, setModalProduto] = useState<ModalProduto | null>(null);
+
+  const [estoqueOriginal, setEstoqueOriginal] = useState({
+    arara: 0,
+    deposito: 0,
+  });
+
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [filtro, setFiltro] = useState("");
@@ -45,6 +51,7 @@ export default function EstoquePage() {
   async function fetchEstoques() {
     try {
       const res = await api.get("/estoque");
+
       setEstoques(
         res.data.map((e: Estoque) => ({
           ...e,
@@ -59,15 +66,25 @@ export default function EstoquePage() {
 
   function abrirModal(prod: Produto) {
     const est = estoques.find((e) => e.produto_id === prod.id);
+
+    const arara = est?.quantidade_arara ?? 0;
+    const deposito = est?.quantidade_deposito ?? 0;
+
+    setEstoqueOriginal({
+      arara,
+      deposito,
+    });
+
     setModalProduto({
       ...prod,
-      quantidade_arara: String(est?.quantidade_arara ?? 0),
-      quantidade_deposito: String(est?.quantidade_deposito ?? 0),
+      quantidade_arara: String(arara),
+      quantidade_deposito: String(deposito),
     });
   }
 
   async function salvarAlteracoes() {
     if (!modalProduto) return;
+
     setLoading(true);
 
     const araraNum = Number(modalProduto.quantidade_arara);
@@ -81,11 +98,9 @@ export default function EstoquePage() {
     }
 
     try {
-      const estAtual = estoques.find((e) => e.produto_id === modalProduto.id);
-      const difArara = araraNum - (estAtual?.quantidade_arara ?? 0);
-      const difDeposito = depositoNum - (estAtual?.quantidade_deposito ?? 0);
+      const difArara = araraNum - estoqueOriginal.arara;
+      const difDeposito = depositoNum - estoqueOriginal.deposito;
 
-      // Ajusta arara
       if (difArara !== 0) {
         await api.post("/movimentacoes-estoque/ajustar", {
           produto_id: modalProduto.id,
@@ -96,7 +111,6 @@ export default function EstoquePage() {
         });
       }
 
-      // Ajusta deposito
       if (difDeposito !== 0) {
         await api.post("/movimentacoes-estoque/ajustar", {
           produto_id: modalProduto.id,
@@ -107,9 +121,19 @@ export default function EstoquePage() {
         });
       }
 
+      if (difArara === 0 && difDeposito === 0) {
+        setMensagem("Nenhuma alteração feita.");
+        setLoading(false);
+        setTimeout(() => setMensagem(""), 3000);
+        return;
+      }
+
       setMensagem("Estoque atualizado!");
-      fetchEstoques();
+
+      await fetchEstoques();
+
       setModalProduto(null);
+
     } catch (err) {
       console.error(err);
       setMensagem("Erro ao salvar estoque.");
@@ -123,159 +147,224 @@ export default function EstoquePage() {
     .filter((p) => p.nome.toLowerCase().includes(filtro.toLowerCase()))
     .filter((p) => {
       if (!mostrarEstoqueBaixo) return true;
-      const e = estoques.find((x) => x.produto_id === p.id);
-      return (e?.quantidade_arara ?? 0) < 5 || (e?.quantidade_deposito ?? 0) < 5;
-    });
 
-  const produtosEstoqueBaixo = produtos.filter((p) => {
-    const e = estoques.find((x) => x.produto_id === p.id);
-    return (e?.quantidade_arara ?? 0) < 5 || (e?.quantidade_deposito ?? 0) < 5;
-  });
+      const e = estoques.find((x) => x.produto_id === p.id);
+
+      return (
+        (e?.quantidade_arara ?? 0) < 5 ||
+        (e?.quantidade_deposito ?? 0) < 5
+      );
+    });
 
   return (
     <main className="min-h-screen p-4 sm:p-6 bg-gray-50 dark:bg-[#2A102D] flex flex-col gap-4">
-      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-pink-300">
+
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-pink-300">
         Estoque
       </h1>
 
       {mensagem && (
-        <div className="p-3 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 text-gray-900 dark:text-pink-300 text-sm sm:text-base shadow">
+        <div className="p-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg shadow">
           {mensagem}
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row gap-3">
+
         <input
           type="text"
           placeholder="Pesquisar produto..."
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
-          className="w-full sm:max-w-md p-2 rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:text-white text-sm sm:text-base"
+          className="w-full sm:max-w-md p-2 border rounded-lg 
+          bg-white text-gray-900 
+          dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600"
         />
 
-        {produtosEstoqueBaixo.length > 0 && (
-          <button
-            onClick={() => setMostrarEstoqueBaixo(!mostrarEstoqueBaixo)}
-            className="underline text-purple-600 dark:text-pink-400 text-sm sm:text-base"
-          >
-            {mostrarEstoqueBaixo ? "Mostrar todos" : `Filtrar estoque baixo (${produtosEstoqueBaixo.length})`}
-          </button>
-        )}
+        <button
+          onClick={() => setMostrarEstoqueBaixo(!mostrarEstoqueBaixo)}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+        >
+          {mostrarEstoqueBaixo ? "Mostrar todos" : "Estoque baixo"}
+        </button>
+
       </div>
 
-      <div className="overflow-x-auto mt-2">
-        <table className="w-full border-collapse text-left min-w-[500px] sm:min-w-full text-sm sm:text-base">
-          <thead className="bg-purple-200 dark:bg-gray-800">
+      <div className="overflow-x-auto">
+
+        <table className="w-full border-collapse text-left text-gray-900 dark:text-gray-100">
+
+          <thead className="bg-purple-200 dark:bg-gray-800 hidden sm:table-header-group">
             <tr>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Produto</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Preço</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Arara</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Depósito</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Total</th>
-              <th className="p-2 sm:p-3 text-gray-900 dark:text-pink-300">Ações</th>
+              <th className="p-3">Produto</th>
+              <th className="p-3">Preço</th>
+              <th className="p-3">Arara</th>
+              <th className="p-3">Depósito</th>
+              <th className="p-3">Total</th>
+              <th className="p-3">Ações</th>
             </tr>
           </thead>
+
           <tbody>
-            {produtosFiltrados.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center p-4 text-gray-900 dark:text-white">
-                  Nenhum produto encontrado.
-                </td>
-              </tr>
-            ) : (
-              produtosFiltrados.map((p) => {
-                const e = estoques.find((x) => x.produto_id === p.id);
-                const arara = e?.quantidade_arara ?? 0;
-                const deposito = e?.quantidade_deposito ?? 0;
-                const total = arara + deposito;
-                const precoFormatado = Number(p.preco_venda).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                });
 
-                const estoqueBaixo = arara < 5 || deposito < 5;
+            {produtosFiltrados.map((p) => {
 
-                return (
-                  <tr
-                    key={p.id}
-                    className={`border-b border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors ${
-                      estoqueBaixo ? "bg-red-50 dark:bg-red-900/30" : ""
-                    }`}
-                  >
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{p.nome}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{precoFormatado}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{arara}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{deposito}</td>
-                    <td className="p-2 sm:p-3 text-gray-900 dark:text-white">{total}</td>
-                    <td className="p-2 sm:p-3">
-                      <button
-                        onClick={() => abrirModal(p)}
-                        className="bg-purple-500 dark:bg-gray-700 hover:bg-purple-600 dark:hover:bg-gray-600 py-1 px-2 sm:px-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition text-xs sm:text-sm text-white"
-                      >
-                        Gerenciar
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
+              const e = estoques.find((x) => x.produto_id === p.id);
+
+              const arara = e?.quantidade_arara ?? 0;
+              const deposito = e?.quantidade_deposito ?? 0;
+              const total = arara + deposito;
+
+              const preco = Number(p.preco_venda).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              });
+
+              const estoqueBaixo = arara < 5 || deposito < 5;
+
+              return (
+
+                <tr
+                  key={p.id}
+                  className="border-b border-gray-200 dark:border-gray-700
+                  flex flex-col sm:table-row
+                  bg-white dark:bg-gray-900
+                  rounded-lg sm:rounded-none
+                  shadow-sm sm:shadow-none
+                  p-3 sm:p-0 mb-3 sm:mb-0"
+                >
+
+                  <td className="p-1 sm:p-3 flex justify-between sm:table-cell">
+
+                    <span className="font-semibold sm:hidden">Produto</span>
+
+                    <div className="flex gap-2 items-center">
+
+                      {p.nome}
+
+                      {estoqueBaixo && (
+                        <span className="text-xs bg-red-500 text-white px-2 py-1 rounded">
+                          baixo
+                        </span>
+                      )}
+
+                    </div>
+
+                  </td>
+
+                  <td className="p-1 sm:p-3 flex justify-between sm:table-cell">
+                    <span className="font-semibold sm:hidden">Preço</span>
+                    {preco}
+                  </td>
+
+                  <td className="p-1 sm:p-3 flex justify-between sm:table-cell">
+                    <span className="font-semibold sm:hidden">Arara</span>
+                    {arara}
+                  </td>
+
+                  <td className="p-1 sm:p-3 flex justify-between sm:table-cell">
+                    <span className="font-semibold sm:hidden">Depósito</span>
+                    {deposito}
+                  </td>
+
+                  <td className="p-1 sm:p-3 flex justify-between sm:table-cell font-semibold">
+                    <span className="font-semibold sm:hidden">Total</span>
+                    {total}
+                  </td>
+
+                  <td className="p-1 sm:p-3 flex justify-end sm:table-cell mt-2 sm:mt-0">
+                    <button
+                      onClick={() => abrirModal(p)}
+                      className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg"
+                    >
+                      Gerenciar
+                    </button>
+                  </td>
+
+                </tr>
+
+              );
+            })}
+
           </tbody>
+
         </table>
+
       </div>
 
       {modalProduto && (
-        <div className="fixed inset-0 bg-black/70 dark:bg-black/80 flex items-center justify-center z-50 p-2">
-          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl w-full max-w-sm sm:max-w-md md:max-w-lg shadow-2xl border border-gray-300 dark:border-gray-700">
-            <h2 className="text-lg sm:text-xl font-bold mb-4 text-gray-900 dark:text-pink-300">
+
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
+
+          <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 rounded-xl w-full max-w-md">
+
+            <h2 className="text-xl font-bold mb-4">
               {modalProduto.nome}
             </h2>
 
-            <div className="flex flex-col gap-3 sm:gap-4">
-              <label className="flex justify-between items-center text-sm sm:text-base">
-                <span className="font-semibold text-gray-900 dark:text-pink-300">Arara:</span>
+            <div className="flex flex-col gap-4">
+
+              <label className="flex justify-between items-center">
+                Arara
                 <input
                   type="number"
-                  min={0}
                   value={modalProduto.quantidade_arara}
                   onChange={(e) =>
-                    setModalProduto({ ...modalProduto, quantidade_arara: e.target.value })
+                    setModalProduto({
+                      ...modalProduto,
+                      quantidade_arara: e.target.value,
+                    })
                   }
-                  className="p-1 w-16 sm:w-20 rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:text-white text-sm sm:text-base"
+                  className="w-24 border rounded px-2 py-1 
+                  bg-white text-gray-900 
+                  dark:bg-gray-800 dark:text-white dark:border-gray-600"
                 />
               </label>
 
-              <label className="flex justify-between items-center text-sm sm:text-base">
-                <span className="font-semibold text-gray-900 dark:text-pink-300">Depósito:</span>
+              <label className="flex justify-between items-center">
+                Depósito
                 <input
                   type="number"
-                  min={0}
                   value={modalProduto.quantidade_deposito}
                   onChange={(e) =>
-                    setModalProduto({ ...modalProduto, quantidade_deposito: e.target.value })
+                    setModalProduto({
+                      ...modalProduto,
+                      quantidade_deposito: e.target.value,
+                    })
                   }
-                  className="p-1 w-16 sm:w-20 rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:text-white text-sm sm:text-base"
+                  className="w-24 border rounded px-2 py-1 
+                  bg-white text-gray-900 
+                  dark:bg-gray-800 dark:text-white dark:border-gray-600"
                 />
               </label>
+
             </div>
 
-            <div className="flex flex-wrap justify-end gap-3 mt-4">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+
               <button
                 onClick={() => setModalProduto(null)}
-                className="px-4 py-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 rounded-lg text-sm sm:text-base"
+                className="w-full sm:w-auto bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
               >
-                Fechar
+                Cancelar
               </button>
+
               <button
                 onClick={salvarAlteracoes}
-                className="px-4 py-2 bg-purple-500 dark:bg-gray-700 hover:bg-purple-600 dark:hover:bg-gray-600 rounded-lg font-semibold text-sm sm:text-base"
                 disabled={loading}
+                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
               >
                 {loading ? "Salvando..." : "Salvar"}
               </button>
+
             </div>
+
           </div>
+
         </div>
+
       )}
+
     </main>
   );
 }
