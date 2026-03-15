@@ -102,11 +102,13 @@ export default function Produtos() {
     setLoading(true);
 
     try {
+      const precoVenda = p.preco_venda?.replace(",", ".");
+      const precoCompra = p.preco_compra?.replace(",", ".");
       const formData = new FormData();
       formData.append("nome", p.nome);
       formData.append("variacao", p.variacao || "");
-      formData.append("preco_venda", p.preco_venda);
-      formData.append("preco_compra", p.preco_compra || "");
+      formData.append("preco_venda", precoVenda || "");
+      formData.append("preco_compra", precoCompra || "");
       formData.append("subcategoria_id", p.subcategoria_id);
       formData.append("categoria_id", p.categoria_id);
 
@@ -145,16 +147,27 @@ export default function Produtos() {
   async function confirmarRemocao() {
     if (!produtoParaRemover?.id) return;
 
-    await api.delete(`/produtos/${produtoParaRemover.id}`);
+    try {
 
-    setProdutos((old) =>
-      old.filter((p) => p.id !== produtoParaRemover.id)
-    );
+      await api.delete(`/produtos/${produtoParaRemover.id}`);
 
-    setMensagem("Produto removido!");
+      setProdutos((old) =>
+        old.filter((p) => p.id !== produtoParaRemover.id)
+      );
 
-    setModalConfirmarRemocao(false);
-    setProdutoParaRemover(null);
+      setMensagem("Produto removido!");
+
+    } catch (err) {
+
+      console.error(err);
+      setMensagem("Erro ao remover produto.");
+
+    } finally {
+
+      setModalConfirmarRemocao(false);
+      setProdutoParaRemover(null);
+
+    }
   }
 
   useEffect(() => {
@@ -287,9 +300,12 @@ export default function Produtos() {
 
       {modalProduto && (
 
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => setModalConfirmarRemocao(false)}
+        >
 
-          <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
+          <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
 
             {loading && (
 
