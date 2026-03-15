@@ -35,6 +35,8 @@ export default function Produtos() {
   const [loadingProdutos, setLoadingProdutos] = useState(true);
   const [mensagem, setMensagem] = useState("");
   const [tentouSalvar, setTentouSalvar] = useState(false);
+  const [modalConfirmarRemocao, setModalConfirmarRemocao] = useState(false);
+  const [produtoParaRemover, setProdutoParaRemover] = useState<Produto | null>(null);
 
   async function buscarProdutos() {
     setLoadingProdutos(true);
@@ -135,14 +137,24 @@ export default function Produtos() {
     }
   }
 
-  async function removerProduto(id: string) {
-    if (!window.confirm("Tem certeza que deseja remover?")) return;
+  function abrirConfirmacaoRemover(produto: Produto) {
+    setProdutoParaRemover(produto);
+    setModalConfirmarRemocao(true);
+  }
 
-    await api.delete(`/produtos/${id}`);
+  async function confirmarRemocao() {
+    if (!produtoParaRemover?.id) return;
 
-    setProdutos((old) => old.filter((p) => p.id !== id));
+    await api.delete(`/produtos/${produtoParaRemover.id}`);
+
+    setProdutos((old) =>
+      old.filter((p) => p.id !== produtoParaRemover.id)
+    );
 
     setMensagem("Produto removido!");
+
+    setModalConfirmarRemocao(false);
+    setProdutoParaRemover(null);
   }
 
   useEffect(() => {
@@ -260,7 +272,7 @@ export default function Produtos() {
                 </button>
 
                 <button
-                  onClick={() => prod.id && removerProduto(prod.id)}
+                  onClick={() => abrirConfirmacaoRemover(prod)}
                   className="flex-1 bg-pink-300 hover:bg-pink-400 text-white py-2 rounded-xl font-bold transition-colors duration-300"
                 >
                   Remover
@@ -475,7 +487,46 @@ export default function Produtos() {
         </div>
 
       )}
+      {modalConfirmarRemocao && (
 
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm shadow-xl">
+
+            <h2 className="text-xl font-bold mb-3 text-gray-800 dark:text-gray-100">
+              Remover Produto
+            </h2>
+
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Tem certeza que deseja remover
+              <span className="font-bold">
+                {" "} {produtoParaRemover?.nome}
+              </span> ?
+            </p>
+
+            <div className="flex justify-end gap-3">
+
+              <button
+                onClick={() => setModalConfirmarRemocao(false)}
+                className="px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white rounded-xl font-bold"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={confirmarRemocao}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+              >
+                Remover
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
     </main>
   );
 }
