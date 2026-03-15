@@ -37,6 +37,9 @@ export default function Produtos() {
   const [tentouSalvar, setTentouSalvar] = useState(false);
   const [modalConfirmarRemocao, setModalConfirmarRemocao] = useState(false);
   const [produtoParaRemover, setProdutoParaRemover] = useState<Produto | null>(null);
+  const [removendo, setRemovendo] = useState(false);
+  const [modalSucesso, setModalSucesso] = useState(false);
+  const [modalErro, setModalErro] = useState(false);
 
   async function buscarProdutos() {
     setLoadingProdutos(true);
@@ -147,25 +150,28 @@ export default function Produtos() {
   async function confirmarRemocao() {
     if (!produtoParaRemover?.id) return;
 
-    try {
+    setRemovendo(true);
 
+    try {
       await api.delete(`/produtos/${produtoParaRemover.id}`);
 
       setProdutos((old) =>
         old.filter((p) => p.id !== produtoParaRemover.id)
       );
 
-      setMensagem("Produto removido!");
+      setModalConfirmarRemocao(false);
+      setProdutoParaRemover(null);
+
+      setModalSucesso(true);
 
     } catch (err) {
 
       console.error(err);
-      setMensagem("Erro ao remover produto.");
+      setModalErro(true);
 
     } finally {
 
-      setModalConfirmarRemocao(false);
-      setProdutoParaRemover(null);
+      setRemovendo(false);
 
     }
   }
@@ -531,12 +537,73 @@ export default function Produtos() {
 
               <button
                 onClick={confirmarRemocao}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+                disabled={removendo}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold flex items-center gap-2"
               >
-                Remover
+
+                {removendo && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+
+                {removendo ? "Removendo..." : "Remover"}
+
               </button>
 
             </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {modalSucesso && (
+
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
+
+            <h2 className="text-xl font-bold text-green-600 mb-3">
+              Sucesso
+            </h2>
+
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Produto removido com sucesso!
+            </p>
+
+            <button
+              onClick={() => setModalSucesso(false)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold"
+            >
+              OK
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {modalErro && (
+
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
+
+            <h2 className="text-xl font-bold text-red-600 mb-3">
+              Erro
+            </h2>
+
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Não foi possível remover o produto.
+            </p>
+
+            <button
+              onClick={() => setModalErro(false)}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+            >
+              Fechar
+            </button>
 
           </div>
 
