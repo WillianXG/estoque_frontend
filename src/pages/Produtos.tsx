@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import imageCompression from "browser-image-compression";
 
 interface Categoria {
   id: string;
@@ -53,18 +54,40 @@ export default function Produtos() {
     setSubcategorias(res.data);
   }
 
-  const handleFileChange = (file: File) => {
-    setImagemFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (modalProduto) {
-        setModalProduto({
-          ...modalProduto,
-          imagem_url: reader.result as string,
-        });
+  const handleFileChange = async (file: File) => {
+    try {
+
+      if (!file.type.startsWith("image/")) {
+        setMensagem("Selecione apenas imagens.");
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1280,
+        useWebWorker: true,
+      };
+
+      const compressedFile = await imageCompression(file, options);
+
+      setImagemFile(compressedFile);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (modalProduto) {
+          setModalProduto({
+            ...modalProduto,
+            imagem_url: reader.result as string,
+          });
+        }
+      };
+
+      reader.readAsDataURL(compressedFile);
+
+    } catch (err) {
+      console.error(err);
+      setMensagem("Erro ao processar imagem.");
+    }
   };
 
   async function salvarProduto(p: Produto) {
@@ -161,61 +184,61 @@ export default function Produtos() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {loadingProdutos
           ? Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md"
-              >
-                <div className="h-64 bg-gray-300 dark:bg-gray-700 rounded-lg mb-4" />
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 mb-2 rounded" />
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 w-2/3 rounded" />
-              </div>
-            ))
+            <div
+              key={i}
+              className="animate-pulse bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md"
+            >
+              <div className="h-64 bg-gray-300 dark:bg-gray-700 rounded-lg mb-4" />
+              <div className="h-4 bg-gray-300 dark:bg-gray-700 mb-2 rounded" />
+              <div className="h-4 bg-gray-300 dark:bg-gray-700 w-2/3 rounded" />
+            </div>
+          ))
           : produtos.map((prod) => (
-              <div
-                key={prod.id}
-                className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col"
-              >
-                <div className="h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3">
-                  <img
-                    src={
-                      prod.imagem_url ||
-                      "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
-                    }
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-
-                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">
-                  {prod.nome}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">{prod.variacao}</p>
-                <p className="text-gray-700 dark:text-gray-200">
-                  Venda: R$ {prod.preco_venda}
-                </p>
-                <p className="text-gray-700 dark:text-gray-200">
-                  Compra: R$ {prod.preco_compra}
-                </p>
-
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => {
-                      setModalProduto(prod);
-                      if (prod.categoria_id) buscarSubcategorias(prod.categoria_id);
-                      setTentouSalvar(false);
-                    }}
-                    className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold transition-colors duration-300"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => prod.id && removerProduto(prod.id)}
-                    className="flex-1 bg-pink-300 hover:bg-pink-400 text-white py-2 rounded-xl font-bold transition-colors duration-300"
-                  >
-                    Remover
-                  </button>
-                </div>
+            <div
+              key={prod.id}
+              className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col"
+            >
+              <div className="h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3">
+                <img
+                  src={
+                    prod.imagem_url ||
+                    "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
+                  }
+                  className="max-h-full max-w-full object-contain"
+                />
               </div>
-            ))}
+
+              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">
+                {prod.nome}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">{prod.variacao}</p>
+              <p className="text-gray-700 dark:text-gray-200">
+                Venda: R$ {prod.preco_venda}
+              </p>
+              <p className="text-gray-700 dark:text-gray-200">
+                Compra: R$ {prod.preco_compra}
+              </p>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => {
+                    setModalProduto(prod);
+                    if (prod.categoria_id) buscarSubcategorias(prod.categoria_id);
+                    setTentouSalvar(false);
+                  }}
+                  className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold transition-colors duration-300"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => prod.id && removerProduto(prod.id)}
+                  className="flex-1 bg-pink-300 hover:bg-pink-400 text-white py-2 rounded-xl font-bold transition-colors duration-300"
+                >
+                  Remover
+                </button>
+              </div>
+            </div>
+          ))}
       </div>
 
       {modalProduto && (
@@ -253,8 +276,14 @@ export default function Produtos() {
             <input
               type="file"
               id="fileInput"
+              accept="image/*"
+              capture="environment"
               className="hidden"
-              onChange={(e) => e.target.files && handleFileChange(e.target.files[0])}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileChange(e.target.files[0]);
+                }
+              }}
             />
 
             {/* INPUTS */}
@@ -271,11 +300,10 @@ export default function Produtos() {
                   onChange={(e) =>
                     setModalProduto({ ...modalProduto, [input.key]: e.target.value })
                   }
-                  className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${
-                    input.required && tentouSalvar && !(modalProduto as any)[input.key]
-                      ? "border-red-500"
-                      : "border-transparent"
-                  }`}
+                  className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${input.required && tentouSalvar && !(modalProduto as any)[input.key]
+                    ? "border-red-500"
+                    : "border-transparent"
+                    }`}
                 />
                 {input.required && tentouSalvar && !(modalProduto as any)[input.key] && (
                   <p className="text-red-500 text-sm mt-1">Preencha este campo!</p>
@@ -295,9 +323,8 @@ export default function Produtos() {
                   });
                   buscarSubcategorias(e.target.value);
                 }}
-                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${
-                  tentouSalvar && !modalProduto.categoria_id ? "border-red-500" : "border-transparent"
-                }`}
+                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${tentouSalvar && !modalProduto.categoria_id ? "border-red-500" : "border-transparent"
+                  }`}
               >
                 <option value="">Selecione Categoria</option>
                 {categorias.map((cat) => (
@@ -317,9 +344,8 @@ export default function Produtos() {
                 onChange={(e) =>
                   setModalProduto({ ...modalProduto, subcategoria_id: e.target.value })
                 }
-                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${
-                  tentouSalvar && !modalProduto.subcategoria_id ? "border-red-500" : "border-transparent"
-                }`}
+                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${tentouSalvar && !modalProduto.subcategoria_id ? "border-red-500" : "border-transparent"
+                  }`}
               >
                 <option value="">Selecione Subcategoria</option>
                 {subcategorias.map((sub) => (
@@ -345,9 +371,8 @@ export default function Produtos() {
               <button
                 onClick={() => salvarProduto(modalProduto)}
                 disabled={loading}
-                className={`px-4 py-2 bg-[#812C65] hover:bg-[#954A79] text-white rounded-xl font-bold flex items-center gap-2 transition-colors duration-300 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`px-4 py-2 bg-[#812C65] hover:bg-[#954A79] text-white rounded-xl font-bold flex items-center gap-2 transition-colors duration-300 ${loading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
               >
                 {loading && (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
