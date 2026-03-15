@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import api from "../api/api";
 
@@ -32,6 +33,7 @@ export default function Produtos() {
   const [loading, setLoading] = useState(false);
   const [loadingProdutos, setLoadingProdutos] = useState(true);
   const [mensagem, setMensagem] = useState("");
+  const [tentouSalvar, setTentouSalvar] = useState(false);
 
   async function buscarProdutos() {
     setLoadingProdutos(true);
@@ -66,7 +68,9 @@ export default function Produtos() {
   };
 
   async function salvarProduto(p: Produto) {
-    if (!p.nome || !p.preco_venda || !p.subcategoria_id) {
+    setTentouSalvar(true);
+
+    if (!p.nome || !p.preco_venda || !p.subcategoria_id || !p.categoria_id) {
       setMensagem("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -80,6 +84,7 @@ export default function Produtos() {
       formData.append("preco_venda", p.preco_venda);
       formData.append("preco_compra", p.preco_compra || "");
       formData.append("subcategoria_id", p.subcategoria_id);
+      formData.append("categoria_id", p.categoria_id);
       if (imagemFile) formData.append("imagem", imagemFile);
 
       if (p.id) {
@@ -96,6 +101,7 @@ export default function Produtos() {
 
       setModalProduto(null);
       setImagemFile(null);
+      setTentouSalvar(false);
     } catch (err) {
       console.error(err);
       setMensagem("Erro ao salvar produto.");
@@ -135,7 +141,7 @@ export default function Produtos() {
       )}
 
       <button
-        onClick={() =>
+        onClick={() => {
           setModalProduto({
             nome: "",
             variacao: "",
@@ -144,8 +150,9 @@ export default function Produtos() {
             preco_compra: "",
             categoria_id: "",
             subcategoria_id: "",
-          })
-        }
+          });
+          setTentouSalvar(false);
+        }}
         className="mb-6 px-6 py-3 bg-[#812C65] hover:bg-[#954A79] text-white font-bold rounded-xl transition-colors duration-300"
       >
         + Criar Produto
@@ -154,14 +161,20 @@ export default function Produtos() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {loadingProdutos
           ? Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="animate-pulse bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md">
+              <div
+                key={i}
+                className="animate-pulse bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md"
+              >
                 <div className="h-64 bg-gray-300 dark:bg-gray-700 rounded-lg mb-4" />
                 <div className="h-4 bg-gray-300 dark:bg-gray-700 mb-2 rounded" />
                 <div className="h-4 bg-gray-300 dark:bg-gray-700 w-2/3 rounded" />
               </div>
             ))
           : produtos.map((prod) => (
-              <div key={prod.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col">
+              <div
+                key={prod.id}
+                className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col"
+              >
                 <div className="h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3">
                   <img
                     src={
@@ -172,16 +185,23 @@ export default function Produtos() {
                   />
                 </div>
 
-                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{prod.nome}</h3>
+                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">
+                  {prod.nome}
+                </h3>
                 <p className="text-gray-600 dark:text-gray-300">{prod.variacao}</p>
-                <p className="text-gray-700 dark:text-gray-200">Venda: R$ {prod.preco_venda}</p>
-                <p className="text-gray-700 dark:text-gray-200">Compra: R$ {prod.preco_compra}</p>
+                <p className="text-gray-700 dark:text-gray-200">
+                  Venda: R$ {prod.preco_venda}
+                </p>
+                <p className="text-gray-700 dark:text-gray-200">
+                  Compra: R$ {prod.preco_compra}
+                </p>
 
                 <div className="flex gap-3 mt-4">
                   <button
                     onClick={() => {
                       setModalProduto(prod);
                       if (prod.categoria_id) buscarSubcategorias(prod.categoria_id);
+                      setTentouSalvar(false);
                     }}
                     className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold transition-colors duration-300"
                   >
@@ -208,9 +228,13 @@ export default function Produtos() {
               </div>
             )}
 
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
+            <h2 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-100">
               {modalProduto.id ? "Editar Produto" : "Criar Produto"}
             </h2>
+
+            <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">
+              Clique na imagem para adicionar uma foto do produto (opcional)
+            </p>
 
             {/* IMAGEM */}
             <div
@@ -235,60 +259,82 @@ export default function Produtos() {
 
             {/* INPUTS */}
             {[
-              { placeholder: "Nome", key: "nome", value: modalProduto.nome },
-              { placeholder: "Variação", key: "variacao", value: modalProduto.variacao },
-              { placeholder: "Preço Venda", key: "preco_venda", value: modalProduto.preco_venda },
-              { placeholder: "Preço Compra", key: "preco_compra", value: modalProduto.preco_compra },
+              { placeholder: "Nome (Ex.: Camiseta P)", key: "nome", required: true },
+              { placeholder: "Variação (Ex.: Vermelha, Azul)", key: "variacao", required: false },
+              { placeholder: "Preço Venda (Ex.: 50,00)", key: "preco_venda", required: true },
+              { placeholder: "Preço Compra (Ex.: 30,00)", key: "preco_compra", required: false },
             ].map((input) => (
-              <input
-                key={input.key}
-                placeholder={input.placeholder}
-                value={input.value}
-                onChange={(e) =>
-                  setModalProduto({ ...modalProduto, [input.key]: e.target.value })
-                }
-                className="w-full mb-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-              />
+              <div key={input.key} className="mb-3">
+                <input
+                  placeholder={input.placeholder}
+                  value={(modalProduto as any)[input.key] || ""}
+                  onChange={(e) =>
+                    setModalProduto({ ...modalProduto, [input.key]: e.target.value })
+                  }
+                  className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${
+                    input.required && tentouSalvar && !(modalProduto as any)[input.key]
+                      ? "border-red-500"
+                      : "border-transparent"
+                  }`}
+                />
+                {input.required && tentouSalvar && !(modalProduto as any)[input.key] && (
+                  <p className="text-red-500 text-sm mt-1">Preencha este campo!</p>
+                )}
+              </div>
             ))}
 
             {/* SELECTS */}
-            <select
-              value={modalProduto.categoria_id}
-              onChange={(e) => {
-                setModalProduto({
-                  ...modalProduto,
-                  categoria_id: e.target.value,
-                  subcategoria_id: "",
-                });
-                buscarSubcategorias(e.target.value);
-              }}
-              className="w-full mb-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-            >
-              <option value="">Selecione Categoria</option>
-              {categorias.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nome}
-                </option>
-              ))}
-            </select>
+            <div className="mb-3">
+              <select
+                value={modalProduto.categoria_id || ""}
+                onChange={(e) => {
+                  setModalProduto({
+                    ...modalProduto,
+                    categoria_id: e.target.value,
+                    subcategoria_id: "",
+                  });
+                  buscarSubcategorias(e.target.value);
+                }}
+                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${
+                  tentouSalvar && !modalProduto.categoria_id ? "border-red-500" : "border-transparent"
+                }`}
+              >
+                <option value="">Selecione Categoria</option>
+                {categorias.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))}
+              </select>
+              {tentouSalvar && !modalProduto.categoria_id && (
+                <p className="text-red-500 text-sm mt-1">Escolha uma categoria!</p>
+              )}
+            </div>
 
-            <select
-              value={modalProduto.subcategoria_id}
-              onChange={(e) =>
-                setModalProduto({ ...modalProduto, subcategoria_id: e.target.value })
-              }
-              className="w-full mb-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-            >
-              <option value="">Selecione Subcategoria</option>
-              {subcategorias.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.nome}
-                </option>
-              ))}
-            </select>
+            <div className="mb-3">
+              <select
+                value={modalProduto.subcategoria_id || ""}
+                onChange={(e) =>
+                  setModalProduto({ ...modalProduto, subcategoria_id: e.target.value })
+                }
+                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${
+                  tentouSalvar && !modalProduto.subcategoria_id ? "border-red-500" : "border-transparent"
+                }`}
+              >
+                <option value="">Selecione Subcategoria</option>
+                {subcategorias.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.nome}
+                  </option>
+                ))}
+              </select>
+              {tentouSalvar && !modalProduto.subcategoria_id && (
+                <p className="text-red-500 text-sm mt-1">Escolha uma subcategoria!</p>
+              )}
+            </div>
 
             {/* BOTÕES */}
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setModalProduto(null)}
                 className="px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white rounded-xl font-bold transition-colors duration-300"
@@ -299,7 +345,9 @@ export default function Produtos() {
               <button
                 onClick={() => salvarProduto(modalProduto)}
                 disabled={loading}
-                className="px-4 py-2 bg-[#812C65] hover:bg-[#954A79] text-white rounded-xl font-bold flex items-center gap-2 transition-colors duration-300"
+                className={`px-4 py-2 bg-[#812C65] hover:bg-[#954A79] text-white rounded-xl font-bold flex items-center gap-2 transition-colors duration-300 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
                 {loading && (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
