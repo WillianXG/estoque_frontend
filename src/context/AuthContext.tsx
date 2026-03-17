@@ -1,16 +1,18 @@
-import { createContext, useEffect, useState, type ReactNode } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useEffect, useState, type ReactNode, useContext } from "react";
 import api from "../api/api";
-import { useContext } from "react";
 
 interface User {
   id: number;
   nome: string;
   codigo: string;
+  role: "admin" | "vendedora";
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (codigo: string, telefone: string) => Promise<void>;
+  login: (codigo: string, senha: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -22,12 +24,13 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-
 export function AuthProvider({ children }: AuthProviderProps) {
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function login(codigo: string, senha: string) {
+
     const { data } = await api.post("/auth/login", {
       codigo,
       senha,
@@ -36,6 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.setItem("token", data.token);
 
     const me = await api.get("/auth/me");
+
     setUser(me.data);
   }
 
@@ -45,6 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   async function loadUser() {
+
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -53,12 +58,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
+
       const { data } = await api.get("/auth/me");
+
       setUser(data);
+
     } catch {
+
       logout();
+
     } finally {
+
       setLoading(false);
+
     }
   }
 

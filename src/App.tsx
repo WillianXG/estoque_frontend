@@ -8,7 +8,7 @@ import Categorias from "./pages/Categorias";
 import Produtos from "./pages/Produtos";
 import Vendas from "./pages/Vendas";
 import Vendedoras from "./pages/Vendedoras";
-import Dashboard from "./pages/Dashboard"; // sua página real de dashboard
+import Dashboard from "./pages/Dashboard";
 import PDV from "./pages/PDV";
 import Carrinho from "./pages/Carrinho";
 import Estoque from "./pages/Estoque";
@@ -20,29 +20,109 @@ function App() {
       <CarrinhoProvider>
         <BrowserRouter>
           <Routes>
+
             {/* Rota pública */}
             <Route path="/login" element={<Login />} />
-          {/* Rotas privadas */}
-          <Route
-            element={
-              <PrivateRoute>
-                <DashboardLayout />
-              </PrivateRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/categorias" element={<Categorias />} />
-            <Route path="/produtos" element={<Produtos />} />
-            <Route path="/vendas" element={<Vendas />} />
-            <Route path="/vendedoras" element={<Vendedoras />} />
-            <Route path="/pdv" element={<PDV />} /> 
-            <Route path="/pdv/carrinho" element={<Carrinho />} />
-            <Route path="/estoque" element={<Estoque />} />
-            <Route path="/MovimentacaoEstoque" element={<MovimentacaoPage />} />
-            <Route path="*" element={<Dashboard />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+
+            {/* Layout protegido (precisa estar logado) */}
+            <Route
+              element={
+                <PrivateRoute>
+                  <DashboardLayout />
+                </PrivateRoute>
+              }
+            >
+
+              {/* ADMIN */}
+              <Route
+                path="/"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <Dashboard />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/categorias"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <Categorias />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/produtos"
+                element={
+                  <PrivateRoute roles={["admin", "vendedora"]}>
+                    <Produtos />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/vendas"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <Vendas />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/vendedoras"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <Vendedoras />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/MovimentacaoEstoque"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <MovimentacaoPage />
+                  </PrivateRoute>
+                }
+              />
+
+              {/* ADMIN e VENDEDORA */}
+
+              <Route
+                path="/pdv"
+                element={
+                  <PrivateRoute roles={["admin", "vendedora"]}>
+                    <PDV />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/pdv/carrinho"
+                element={
+                  <PrivateRoute roles={["admin", "vendedora"]}>
+                    <Carrinho />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/estoque"
+                element={
+                  <PrivateRoute roles={["admin", "vendedora"]}>
+                    <Estoque />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route path="*" element={<Dashboard />} />
+
+            </Route>
+
+          </Routes>
+        </BrowserRouter>
       </CarrinhoProvider>
     </AuthProvider>
   );

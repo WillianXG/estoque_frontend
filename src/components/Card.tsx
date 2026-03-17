@@ -24,23 +24,22 @@ const Card: React.FC<CardProps> = ({
 }) => {
   const [erro, setErro] = useState(false);
 
-  function ativarErro() {
+  const ativarErro = () => {
     setErro(true);
     setTimeout(() => setErro(false), 400);
-  }
+  };
 
-  function handleAdicionar() {
+  const handleAdicionar = () => {
     if (!onAdicionar()) ativarErro();
-  }
+  };
 
-  function handleAumentar() {
+  const handleAumentar = () => {
     if (!onAumentar()) ativarErro();
-  }
+  };
 
-  // ✅ Tratamento seguro do preco_venda
+  // ✅ Formatação segura do preço
   const precoNumero = Number(preco_venda);
   const precoValido = isNaN(precoNumero) ? 0 : precoNumero;
-
   const precoFormatado = new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
@@ -49,7 +48,7 @@ const Card: React.FC<CardProps> = ({
   return (
     <article
       className={`
-        rounded-2xl p-5 flex flex-col justify-between
+        rounded-2xl p-4 sm:p-5 flex flex-col justify-between
         bg-[#590C42] dark:bg-[#4B1F59]
         text-white
         shadow-lg border border-[#812C65]/50
@@ -58,27 +57,31 @@ const Card: React.FC<CardProps> = ({
         ${erro ? "animate-shake border-[#E8B7D4]" : ""}
       `}
     >
-      {/* Imagem + Infos */}
+      {/* Imagem + Info */}
       <div className="flex flex-col items-center text-center">
-        <img
-          src={imagem_url || "https://via.placeholder.com/300x200"}
-          alt={`Imagem do produto ${nome}`}
-          className="w-full max-h-60 object-contain rounded-xl mb-4 border border-[#812C65]/40 bg-white/5"
-        />
+        <div className="w-full h-48 sm:h-52 md:h-56 lg:h-60 xl:h-64 overflow-hidden rounded-xl mb-3 border border-[#812C65]/40 bg-white/5">
+          <img
+            src={imagem_url || "https://via.placeholder.com/300x200"}
+            alt={`Imagem do produto ${nome}`}
+            className="w-full h-full object-cover"
+          />
+        </div>
 
-        <h3 className="font-bold text-lg tracking-wide">{nome}</h3>
+        <h3 className="font-bold text-lg sm:text-base md:text-lg lg:text-xl truncate w-full">
+          {nome}
+        </h3>
 
-        <p className="text-[#E8B7D4] font-extrabold mt-1 text-lg">
+        <p className="text-[#E8B7D4] font-extrabold mt-1 text-base sm:text-lg md:text-lg">
           {precoFormatado}
         </p>
 
-        <p className="text-gray-200 dark:text-gray-300 text-sm mt-1">
-          Estoque disponível: {quantidade_arara}
+        <p className="text-gray-200 dark:text-gray-300 text-sm sm:text-xs md:text-sm mt-1">
+          Estoque: {quantidade_arara}
         </p>
       </div>
 
       {/* Ações */}
-      <div className="mt-5 w-full">
+      <div className="mt-4 sm:mt-5 w-full">
         {quantidadeNoCarrinho === 0 ? (
           <button
             onClick={handleAdicionar}
@@ -86,7 +89,7 @@ const Card: React.FC<CardProps> = ({
               w-full bg-[#812C65] 
               hover:bg-[#954A79]
               active:scale-95
-              text-white py-2.5 rounded-xl 
+              text-white py-2 sm:py-2.5 rounded-xl 
               font-semibold 
               transition-all duration-200
               shadow-md hover:shadow-lg
@@ -95,21 +98,22 @@ const Card: React.FC<CardProps> = ({
             Adicionar
           </button>
         ) : (
-          <div className="flex items-center justify-between bg-[#E8B7D4] rounded-xl p-2 shadow-inner">
+          <div className="flex items-center justify-between bg-[#E8B7D4] rounded-xl p-2 sm:p-2.5 shadow-inner">
             <button
               onClick={onDiminuir}
               className="
                 bg-[#F5A9D0] 
                 hover:bg-[#F7B7DE] 
                 active:scale-95
-                text-white px-3 py-1 rounded-lg 
+                text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg 
                 transition-all duration-200
+                font-bold
               "
             >
               −
             </button>
 
-            <span className="font-bold text-lg text-[#590C42]">
+            <span className="font-bold text-base sm:text-lg md:text-xl text-[#590C42]">
               {quantidadeNoCarrinho}
             </span>
 
@@ -119,8 +123,9 @@ const Card: React.FC<CardProps> = ({
                 bg-[#812C65] 
                 hover:bg-[#954A79] 
                 active:scale-95
-                text-white px-3 py-1 rounded-lg 
+                text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg 
                 transition-all duration-200
+                font-bold
               "
             >
               +
@@ -129,7 +134,7 @@ const Card: React.FC<CardProps> = ({
         )}
 
         {erro && (
-          <p className="text-[#F5A9D0] text-sm font-semibold mt-3 text-center">
+          <p className="text-[#F5A9D0] text-sm font-semibold mt-2 sm:mt-3 text-center">
             Estoque insuficiente
           </p>
         )}
