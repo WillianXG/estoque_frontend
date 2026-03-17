@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export interface Produto {
   id: number;
@@ -7,9 +7,7 @@ export interface Produto {
   imagem_url: string;
 
   quantidade: number;
-
   estoque: number;
-
   quantidade_arara: number;
   quantidade_deposito: number;
 }
@@ -26,122 +24,80 @@ interface CarrinhoContextType {
 const CarrinhoContext = createContext<CarrinhoContextType | undefined>(undefined);
 
 export function CarrinhoProvider({ children }: { children: ReactNode }) {
+  // 🔹 Inicializa carrinho a partir do localStorage
+  const [carrinho, setCarrinho] = useState<Produto[]>(() => {
+    const carrinhoSalvo = localStorage.getItem("carrinho");
+    return carrinhoSalvo ? JSON.parse(carrinhoSalvo) : [];
+  });
 
-  const [carrinho, setCarrinho] = useState<Produto[]>([]);
-
+  // 🔹 Sempre que o carrinho mudar, salva no localStorage
+  useEffect(() => {
+    localStorage.setItem("carrinho", JSON.stringify(carrinho));
+  }, [carrinho]);
 
   function adicionar(produto: Produto): boolean {
-
     const item = carrinho.find(p => p.id === produto.id);
 
     if (item) {
-
-      if (item.quantidade >= item.estoque) {
-        return false;
-      }
+      if (item.quantidade >= item.estoque) return false;
 
       setCarrinho(prev =>
         prev.map(p =>
-          p.id === produto.id
-            ? { ...p, quantidade: p.quantidade + 1 }
-            : p
+          p.id === produto.id ? { ...p, quantidade: p.quantidade + 1 } : p
         )
       );
 
       return true;
     }
 
-    if (produto.estoque <= 0) {
-      return false;
-    }
+    if (produto.estoque <= 0) return false;
 
-    setCarrinho(prev => [
-      ...prev,
-      { ...produto, quantidade: 1 }
-    ]);
-
+    setCarrinho(prev => [...prev, { ...produto, quantidade: 1 }]);
     return true;
   }
 
-
   function aumentar(id: number): boolean {
-
     const item = carrinho.find(p => p.id === id);
-
     if (!item) return false;
-
-    if (item.quantidade >= item.estoque) {
-      return false;
-    }
+    if (item.quantidade >= item.estoque) return false;
 
     setCarrinho(prev =>
-      prev.map(p =>
-        p.id === id
-          ? { ...p, quantidade: p.quantidade + 1 }
-          : p
-      )
+      prev.map(p => (p.id === id ? { ...p, quantidade: p.quantidade + 1 } : p))
     );
 
     return true;
   }
 
-
   function diminuir(id: number) {
-
     setCarrinho(prev =>
       prev
         .map(item =>
-          item.id === id
-            ? { ...item, quantidade: item.quantidade - 1 }
-            : item
+          item.id === id ? { ...item, quantidade: item.quantidade - 1 } : item
         )
         .filter(item => item.quantidade > 0)
     );
-
   }
-
 
   function remover(id: number) {
-
     setCarrinho(prev => prev.filter(p => p.id !== id));
-
   }
-
 
   function limpar() {
-
     setCarrinho([]);
-
   }
-
 
   return (
     <CarrinhoContext.Provider
-      value={{
-        carrinho,
-        adicionar,
-        remover,
-        limpar,
-        aumentar,
-        diminuir
-      }}
+      value={{ carrinho, adicionar, remover, limpar, aumentar, diminuir }}
     >
       {children}
     </CarrinhoContext.Provider>
   );
-
 }
-
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useCarrinho() {
-
   const context = useContext(CarrinhoContext);
-
-  if (!context) {
-    throw new Error("useCarrinho must be used inside CarrinhoProvider");
-  }
-
+  if (!context) throw new Error("useCarrinho must be used inside CarrinhoProvider");
   return context;
-
 }

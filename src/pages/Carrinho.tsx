@@ -1,10 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// src/pages/Carrinho.tsx
+// eslint-disable @typescript-eslint/no-explicit-any
 import { useState, useEffect } from "react";
 import { useCarrinho } from "../context/CarrinhoContext";
 import { useNavigate } from "react-router-dom";
-import api, { calcularFrete } from "../api/api";
+import api from "../api/api";
 
 interface Produto {
   id: number;
@@ -16,6 +14,12 @@ interface Produto {
   quantidade: number;
 }
 
+interface Regiao {
+  nome: string;
+  precoMin: number;
+  precoMax: number;
+}
+
 export default function Carrinho() {
   const { carrinho, remover, limpar } = useCarrinho();
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -23,10 +27,8 @@ export default function Carrinho() {
   const [canalVenda, setCanalVenda] = useState("");
   const [localVenda, setLocalVenda] = useState("arara");
   const [observacao, setObservacao] = useState("");
-  const [cep, setCep] = useState("");
-  const [endereco, setEndereco] = useState<any>(null);
-  const [frete, setFrete] = useState(0);
-  const [loadingFrete, setLoadingFrete] = useState(false);
+  const [regiaoSelecionada, setRegiaoSelecionada] = useState<Regiao | null>(null);
+  const [valorUber, setValorUber] = useState<number | null>(null);
 
   const navigate = useNavigate();
 
@@ -34,10 +36,10 @@ export default function Carrinho() {
     (acc, item) => acc + item.preco * item.quantidade,
     0
   );
-  const total = totalProdutos + frete;
+  const total = totalProdutos + (valorUber ?? 0);
 
   useEffect(() => {
-    async function carregar() {
+    const carregarProdutos = async () => {
       try {
         const token = localStorage.getItem("token");
         const res = await api.get<Produto[]>("/produtos", {
@@ -45,52 +47,57 @@ export default function Carrinho() {
         });
         setProdutos(res.data);
       } catch (err) {
-        console.error(err);
+        console.error("Erro ao carregar produtos:", err);
       }
-    }
-    carregar();
+    };
+    carregarProdutos();
   }, []);
 
-  function obterEstoque(id: number) {
+  const obterEstoque = (id: number) => {
     const produto = produtos.find((p) => p.id === id);
-    if (!produto) return { quantidade_arara: 0, quantidade_deposito: 0 };
-    return produto;
-  }
+    return produto || { quantidade_arara: 0, quantidade_deposito: 0 };
+  };
 
-  const handleCepChange = async (valor: string) => {
-    setCep(valor);
-    const cepLimpo = valor.replace(/\D/g, "");
-    if (cepLimpo.length !== 8) return;
+  // Lista de regiões com preço base (quanto mais longe, maior)
+  const regioes: Regiao[] = [
+    { nome: "Chatuba / Mesquita", precoMin: 15, precoMax: 25 }, // perto
+    { nome: "Anchieta / RJ", precoMin: 20, precoMax: 30 },       // próximo, mais barato que Inhaúma
+    { nome: "Inhaúma / Rio de Janeiro", precoMin: 25, precoMax: 35 }, // mais longe
+    { nome: "Outros bairros distantes", precoMin: 50, precoMax: 70 },
+  ];
 
-    try {
-      setLoadingFrete(true);
-      // Busca endereço via ViaCEP
-      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-      const data = await res.json();
-      setEndereco(data);
-
-      // Prepara pacotes
-      const pacotes = carrinho.map((_item) => ({
-        weight: 1,   // ajustar conforme produto
-        length: 20,
-        width: 15,
-        height: 10,
-      }));
-
-      // Calcula frete real
-      const freteData = await calcularFrete(cepLimpo, pacotes);
-      setFrete(freteData.valor ?? 0);
-    } catch (err) {
-      console.error(err);
-      setFrete(0);
-    } finally {
-      setLoadingFrete(false);
+  const calcularUberPorRegiao = (regiao: Regiao | null) => {
+    if (!regiao) {
+      setValorUber(null);
+      return;
     }
+
+    // Valor base aleatório dentro da faixa
+    let valor = Math.random() * (regiao.precoMax - regiao.precoMin) + regiao.precoMin;
+
+    // Ajuste por horário
+    const horaAtual = new Date().getHours();
+
+    if (horaAtual >= 10 && horaAtual < 16) {
+      // Fora do pico → desconto 10%
+      valor *= 0.9;
+    } else if ((horaAtual >= 7 && horaAtual < 10) || (horaAtual >= 17 && horaAtual < 20)) {
+      // Pico → preço normal
+      valor *= 1;
+    } else if (horaAtual >= 0 && horaAtual < 6) {
+      // Madrugada → desconto leve 10%
+      valor *= 0.9;
+    } else {
+      // Meio período noite → preço normal
+      valor *= 1;
+    }
+
+    setValorUber(valor);
   };
 
   const finalizarVenda = async () => {
     if (!formaPagamento || !canalVenda) {
-      alert("Selecione forma de pagamento e canal");
+      alert("Selecione forma de pagamento e canal de venda.");
       return;
     }
 
@@ -110,18 +117,18 @@ export default function Carrinho() {
           observacoes: observacao,
           canal: canalVenda,
           local_venda: localVenda,
-          cep: canalVenda === "Instagram" ? cep : null,
-          frete: canalVenda === "Instagram" ? frete : 0,
+          regiao: regiaoSelecionada?.nome || null,
+          uber_estimativa: valorUber ?? 0,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       limpar();
-      alert("Venda concluída!");
+      alert("Venda concluída com sucesso!");
       navigate("/pdv");
     } catch (err) {
-      console.error(err);
-      alert("Erro ao finalizar venda");
+      console.error("Erro ao finalizar venda:", err);
+      alert("Erro ao finalizar a venda.");
     }
   };
 
@@ -132,7 +139,7 @@ export default function Carrinho() {
           <h1 className="text-3xl font-bold mb-4">Carrinho vazio</h1>
           <button
             onClick={() => navigate("/pdv")}
-            className="bg-purple-600 text-white px-6 py-2 rounded"
+            className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700 transition"
           >
             Voltar ao PDV
           </button>
@@ -160,14 +167,17 @@ export default function Carrinho() {
               <div className="flex-1">
                 <h2 className="font-bold">{item.nome}</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-300">
-                  Arara {estoque.quantidade_arara} | Depósito {estoque.quantidade_deposito}
+                  Arara: {estoque.quantidade_arara} | Depósito: {estoque.quantidade_deposito}
                 </p>
                 <p className="font-semibold">R$ {item.preco.toFixed(2)}</p>
               </div>
               <div className="text-right w-28">
                 <p className="font-bold">R$ {(item.preco * item.quantidade).toFixed(2)}</p>
-                <button onClick={() => remover(item.id)} className="text-red-500 text-sm">
-                  remover
+                <button
+                  onClick={() => remover(item.id)}
+                  className="text-red-500 text-sm hover:underline"
+                >
+                  Remover
                 </button>
               </div>
             </div>
@@ -181,7 +191,7 @@ export default function Carrinho() {
           onChange={(e) => setFormaPagamento(e.target.value)}
           className="border p-3 rounded bg-white dark:bg-gray-800"
         >
-          <option value="">Forma pagamento</option>
+          <option value="">Forma de pagamento</option>
           <option>Dinheiro</option>
           <option>Pix</option>
           <option>Cartão</option>
@@ -192,7 +202,7 @@ export default function Carrinho() {
           onChange={(e) => setCanalVenda(e.target.value)}
           className="border p-3 rounded bg-white dark:bg-gray-800"
         >
-          <option value="">Canal venda</option>
+          <option value="">Canal de venda</option>
           <option>Loja</option>
           <option>Instagram</option>
         </select>
@@ -216,34 +226,34 @@ export default function Carrinho() {
 
       {canalVenda === "Instagram" && (
         <div className="mt-6 space-y-2">
-          <input
-            placeholder="CEP"
-            value={cep}
-            onChange={(e) => handleCepChange(e.target.value)}
+          <select
+            value={regiaoSelecionada?.nome || ""}
+            onChange={(e) => {
+              const reg = regioes.find(r => r.nome === e.target.value) || null;
+              setRegiaoSelecionada(reg);
+              calcularUberPorRegiao(reg);
+            }}
             className="border p-3 rounded bg-white dark:bg-gray-800"
-          />
-
-          {endereco && (
-            <div className="text-sm">
-              <p>{endereco.logradouro}</p>
-              <p>{endereco.bairro}</p>
-              <p>
-                {endereco.localidade}-{endereco.uf}
-              </p>
-            </div>
-          )}
+          >
+            <option value="">Selecione a região</option>
+            {regioes.map((r) => (
+              <option key={r.nome} value={r.nome}>
+                {r.nome}
+              </option>
+            ))}
+          </select>
 
           <p className="font-semibold">
-            Frete: {loadingFrete ? "Calculando..." : `R$ ${frete.toFixed(2)}`}
+            {valorUber === null ? "Selecione a região" : `Uber aproximado: R$ ${valorUber.toFixed(2)}`}
           </p>
         </div>
       )}
 
-      <div className="mt-8 border-t pt-6 flex justify-between items-center">
+      <div className="mt-8 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Total R$ {total.toFixed(2)}</h2>
         <button
           onClick={finalizarVenda}
-          className="bg-purple-600 text-white px-8 py-3 rounded-lg"
+          className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 transition"
         >
           Finalizar venda
         </button>
