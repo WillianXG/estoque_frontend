@@ -349,6 +349,7 @@ export default function Produtos() {
               type="file"
               id="fileInput"
               accept="image/*"
+              capture="environment"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
