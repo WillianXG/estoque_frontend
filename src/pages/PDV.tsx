@@ -21,6 +21,7 @@ interface ProdutoAPI {
   preco_venda: string;
   imagem_url: string | null;
   quantidade_arara: number;
+  quantidade_deposito: number; // 👈 NOVO
   subcategoria_id: number;
 }
 
@@ -30,6 +31,7 @@ interface Produto {
   preco: number;
   imagem_url: string;
   quantidade_arara: number;
+  quantidade_deposito: number; // 👈 NOVO
   subcategoria_id: number;
 }
 
@@ -61,7 +63,8 @@ export default function PDV() {
         nome: p.nome,
         preco: parseFloat(p.preco_venda) || 0,
         imagem_url: p.imagem_url?.trim() || "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
-        quantidade_arara: p.quantidade_arara,
+        quantidade_arara: p.quantidade_arara ?? 0,
+        quantidade_deposito: p.quantidade_deposito ?? 0, // 👈 NOVO
         subcategoria_id: p.subcategoria_id,
       }));
 
@@ -158,9 +161,15 @@ export default function PDV() {
                 preco_venda={produto.preco}
                 imagem_url={produto.imagem_url}
                 quantidade_arara={produto.quantidade_arara}
+                quantidade_deposito={produto.quantidade_deposito} // 👈 NOVO
                 quantidadeNoCarrinho={itemNoCarrinho?.quantidade || 0}
                 onAdicionar={() =>
-                  adicionar({ ...produto, quantidade: 1, estoque: produto.quantidade_arara, quantidade_deposito: 0 })
+                  adicionar({
+                    ...produto,
+                    quantidade: 1,
+                    estoque: produto.quantidade_arara + produto.quantidade_deposito, // 👈 TOTAL
+                    quantidade_deposito: produto.quantidade_deposito
+                  })
                 }
                 onAumentar={() => aumentar(produto.id)}
                 onDiminuir={() => diminuir(produto.id)}

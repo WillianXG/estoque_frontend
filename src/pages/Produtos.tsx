@@ -40,6 +40,14 @@ export default function Produtos() {
   const [removendo, setRemovendo] = useState(false);
   const [modalSucesso, setModalSucesso] = useState(false);
   const [modalErro, setModalErro] = useState(false);
+  const [modalEstoque, setModalEstoque] = useState(false);
+  const [novoProdutoId, setNovoProdutoId] = useState<string | null>(null);
+  const [modalPerguntaEstoque, setModalPerguntaEstoque] = useState(false);
+
+  const [estoqueInicial, setEstoqueInicial] = useState({
+    arara: "",
+    deposito: ""
+  });
 
   async function buscarProdutos() {
     setLoadingProdutos(true);
@@ -123,8 +131,13 @@ export default function Produtos() {
         await api.put(`/produtos/${p.id}`, formData);
         setMensagem("Produto atualizado!");
       } else {
-        await api.post("/produtos", formData);
+        const res = await api.post("/produtos", formData);
+
         setMensagem("Produto criado!");
+
+        // pega ID do produto criado
+        setNovoProdutoId(res.data.id);
+        setModalPerguntaEstoque(true);
       }
 
       await buscarProdutos();
@@ -139,6 +152,50 @@ export default function Produtos() {
     } finally {
       setLoading(false);
       setTimeout(() => setMensagem(""), 3000);
+    }
+  }
+
+  async function salvarEstoqueInicial() {
+    if (!novoProdutoId) return;
+
+    const arara = Number(estoqueInicial.arara);
+    const deposito = Number(estoqueInicial.deposito);
+
+    if (isNaN(arara) || isNaN(deposito)) {
+      setMensagem("Valores de estoque inválidos.");
+      return;
+    }
+
+    try {
+      if (arara > 0) {
+        await api.post("/movimentacoes-estoque/ajustar", {
+          produto_id: novoProdutoId,
+          tipo: "entrada",
+          local: "arara",
+          quantidade: arara,
+          motivo: "Cadastro inicial",
+        });
+      }
+
+      if (deposito > 0) {
+        await api.post("/movimentacoes-estoque/ajustar", {
+          produto_id: novoProdutoId,
+          tipo: "entrada",
+          local: "deposito",
+          quantidade: deposito,
+          motivo: "Cadastro inicial",
+        });
+      }
+
+      setModalEstoque(false);
+      setEstoqueInicial({ arara: "", deposito: "" });
+      setNovoProdutoId(null);
+
+      await buscarProdutos();
+
+    } catch (err) {
+      console.error(err);
+      setMensagem("Erro ao salvar estoque.");
     }
   }
 
@@ -599,6 +656,111 @@ export default function Produtos() {
 
         </div>
 
+      )}
+
+      {modalPerguntaEstoque && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
+
+            <h2 className="text-xl font-bold mb-3 text-gray-800 dark:text-gray-100">
+              Produto criado!
+            </h2>
+
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Deseja adicionar estoque agora?
+            </p>
+
+            <div className="flex gap-3">
+
+              <button
+                onClick={() => {
+                  setModalPerguntaEstoque(false);
+                }}
+                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-xl font-bold"
+              >
+                Não
+              </button>
+
+              <button
+                onClick={() => {
+                  setModalPerguntaEstoque(false);
+                  setModalEstoque(true);
+                }}
+                className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold"
+              >
+                Sim
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {modalEstoque && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100 text-center">
+              📦 Estoque Inicial
+            </h2>
+
+            <div className="flex flex-col gap-4">
+
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-xl flex justify-between items-center">
+                <span className="font-medium text-gray-700 dark:text-gray-200">
+                  Arara
+                </span>
+
+                <input
+                  type="number"
+                  value={estoqueInicial.arara}
+                  onChange={(e) =>
+                    setEstoqueInicial({ ...estoqueInicial, arara: e.target.value })
+                  }
+                  className="w-20 text-center p-2 rounded-lg bg-white dark:bg-gray-800"
+                />
+              </div>
+
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-xl flex justify-between items-center">
+                <span className="font-medium text-gray-700 dark:text-gray-200">
+                  Depósito
+                </span>
+
+                <input
+                  type="number"
+                  value={estoqueInicial.deposito}
+                  onChange={(e) =>
+                    setEstoqueInicial({ ...estoqueInicial, deposito: e.target.value })
+                  }
+                  className="w-20 text-center p-2 rounded-lg bg-white dark:bg-gray-800"
+                />
+              </div>
+
+            </div>
+
+            <div className="flex gap-3 mt-6">
+
+              <button
+                onClick={() => setModalEstoque(false)}
+                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-xl font-bold"
+              >
+                Pular
+              </button>
+
+              <button
+                onClick={salvarEstoqueInicial}
+                className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold"
+              >
+                Salvar
+              </button>
+
+            </div>
+
+          </div>
+        </div>
       )}
 
       {modalErro && (

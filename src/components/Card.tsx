@@ -6,6 +6,7 @@ interface CardProps {
   preco_venda: number | string | null | undefined;
   imagem_url?: string;
   quantidade_arara: number;
+  quantidade_deposito: number; // 👈 NOVO
   quantidadeNoCarrinho: number;
   onAdicionar: () => boolean;
   onAumentar: () => boolean;
@@ -17,6 +18,7 @@ const Card: React.FC<CardProps> = ({
   preco_venda,
   imagem_url,
   quantidade_arara,
+  quantidade_deposito, // 👈 NOVO
   quantidadeNoCarrinho,
   onAdicionar,
   onAumentar,
@@ -40,11 +42,12 @@ const Card: React.FC<CardProps> = ({
   // ✅ Formatação segura do preço
   const precoNumero = Number(preco_venda);
   const precoValido = isNaN(precoNumero) ? 0 : precoNumero;
+
   const precoFormatado = new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
   }).format(precoValido);
-
+  const total = quantidade_arara + quantidade_deposito;
   return (
     <article
       className={`
@@ -75,9 +78,13 @@ const Card: React.FC<CardProps> = ({
           {precoFormatado}
         </p>
 
-        <p className="text-gray-200 dark:text-gray-300 text-sm sm:text-xs md:text-sm mt-1">
-          Estoque: {quantidade_arara}
-        </p>
+        <div className="text-gray-200 dark:text-gray-300 text-xs sm:text-xs md:text-sm mt-2 text-left w-full">
+          <p>Arara: {quantidade_arara}</p>
+          <p>Depósito: {quantidade_deposito}</p>
+          <p className="font-bold text-[#E8B7D4]">
+            Total: {total}
+          </p>
+        </div>
       </div>
 
       {/* Ações */}
