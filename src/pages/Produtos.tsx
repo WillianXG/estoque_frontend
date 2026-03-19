@@ -331,26 +331,24 @@ export default function Produtos() {
               Clique na imagem para adicionar uma foto do produto (opcional)
             </p>
 
-            <div
-              className="h-64 w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3 cursor-pointer"
-              onClick={() => document.getElementById("fileInput")?.click()}
-            >
+            <label htmlFor="fileInput">
+              <div className="h-64 w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3 cursor-pointer">
 
-              <img
-                src={
-                  modalProduto.imagem_url ||
-                  "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
-                }
-                className="max-h-full max-w-full object-contain"
-              />
+                <img
+                  src={
+                    modalProduto.imagem_url ||
+                    "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
+                  }
+                  className="max-h-full max-w-full object-contain"
+                />
 
-            </div>
+              </div>
+            </label>
 
             <input
               type="file"
               id="fileInput"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
