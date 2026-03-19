@@ -314,13 +314,9 @@ export default function Produtos() {
           <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
 
             {loading && (
-
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl z-10">
-
                 <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-
               </div>
-
             )}
 
             <h2 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-100">
@@ -328,35 +324,57 @@ export default function Produtos() {
             </h2>
 
             <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">
-              Clique na imagem para adicionar uma foto do produto (opcional)
+              Adicione uma foto do produto (opcional)
             </p>
 
-            <label htmlFor="fileInput">
-              <div className="h-64 w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3 cursor-pointer">
+            {/* IMAGEM (não clicável) */}
+            <div className="h-64 w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3">
 
-                <img
-                  src={
-                    modalProduto.imagem_url ||
-                    "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
-                  }
-                  className="max-h-full max-w-full object-contain"
-                />
-
-              </div>
-            </label>
-
-            <input
-              type="file"
-              id="fileInput"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleFileChange(e.target.files[0]);
+              <img
+                src={
+                  modalProduto.imagem_url ||
+                  "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
                 }
-              }}
-            />
+                className="max-h-full max-w-full object-contain"
+              />
+
+            </div>
+
+            {/* BOTÕES */}
+            <div className="flex gap-3 mb-4">
+
+              {/* CÂMERA */}
+              <label className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-3 rounded-xl text-center font-bold cursor-pointer transition">
+                📷 Câmera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleFileChange(e.target.files[0]);
+                    }
+                  }}
+                />
+              </label>
+
+              {/* GALERIA */}
+              <label className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-3 rounded-xl text-center font-bold cursor-pointer transition">
+                🖼️ Galeria
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleFileChange(e.target.files[0]);
+                    }
+                  }}
+                />
+              </label>
+
+            </div>
 
             {/* INPUTS */}
 
