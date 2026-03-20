@@ -1,24 +1,26 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export interface Produto {
-  id: number;
+  id_carrinho: string;   // A chave única (ex: "10-1-arara")
+  id: number;            // ID do produto pai
+  id_variante: number;   // ID da variante específica
   nome: string;
+  tamanho: string;
+  variacao: string;
+  origem: 'arara' | 'deposito';
   preco: number;
   imagem_url: string;
-
   quantidade: number;
   estoque: number;
-  quantidade_arara: number;
-  quantidade_deposito: number;
 }
 
 interface CarrinhoContextType {
   carrinho: Produto[];
   adicionar: (produto: Produto) => boolean;
-  remover: (id: number) => void;
+  remover: (id_carrinho: string) => void;
   limpar: () => void;
-  aumentar: (id: number) => boolean;
-  diminuir: (id: number) => void;
+  aumentar: (id_carrinho: string) => boolean;
+  diminuir: (id_carrinho: string) => void;
 }
 
 const CarrinhoContext = createContext<CarrinhoContextType | undefined>(undefined);
@@ -35,15 +37,16 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("carrinho", JSON.stringify(carrinho));
   }, [carrinho]);
 
+  // CORREÇÃO: Agora usamos p.id_carrinho para diferenciar tamanhos/origens
   function adicionar(produto: Produto): boolean {
-    const item = carrinho.find(p => p.id === produto.id);
+    const item = carrinho.find(p => p.id_carrinho === produto.id_carrinho);
 
     if (item) {
       if (item.quantidade >= item.estoque) return false;
 
       setCarrinho(prev =>
         prev.map(p =>
-          p.id === produto.id ? { ...p, quantidade: p.quantidade + 1 } : p
+          p.id_carrinho === produto.id_carrinho ? { ...p, quantidade: p.quantidade + 1 } : p
         )
       );
 
@@ -56,30 +59,30 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  function aumentar(id: number): boolean {
-    const item = carrinho.find(p => p.id === id);
+  function aumentar(id_carrinho: string): boolean {
+    const item = carrinho.find(p => p.id_carrinho === id_carrinho);
     if (!item) return false;
     if (item.quantidade >= item.estoque) return false;
 
     setCarrinho(prev =>
-      prev.map(p => (p.id === id ? { ...p, quantidade: p.quantidade + 1 } : p))
+      prev.map(p => (p.id_carrinho === id_carrinho ? { ...p, quantidade: p.quantidade + 1 } : p))
     );
 
     return true;
   }
 
-  function diminuir(id: number) {
+  function diminuir(id_carrinho: string) {
     setCarrinho(prev =>
       prev
         .map(item =>
-          item.id === id ? { ...item, quantidade: item.quantidade - 1 } : item
+          item.id_carrinho === id_carrinho ? { ...item, quantidade: item.quantidade - 1 } : item
         )
         .filter(item => item.quantidade > 0)
     );
   }
 
-  function remover(id: number) {
-    setCarrinho(prev => prev.filter(p => p.id !== id));
+  function remover(id_carrinho: string) {
+    setCarrinho(prev => prev.filter(p => p.id_carrinho !== id_carrinho));
   }
 
   function limpar() {

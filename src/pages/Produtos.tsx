@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import imageCompression from "browser-image-compression";
+import { FiCamera, FiImage, FiPlus, FiTrash2, FiX, FiSave } from "react-icons/fi";
 
 interface Categoria {
   id: string;
@@ -23,9 +24,26 @@ interface Produto {
   subcategoria_id?: string;
   preco_venda?: string;
   preco_compra?: string;
+  quantidade_arara?: string;
+  quantidade_deposito?: string;
+  variantes?: {
+    id?: string;
+    variacao: string;
+    tamanho: string;
+    quantidade_arara: number;
+    quantidade_deposito: number;
+  }[];
+}
+
+interface Variante {
+  variacao: string;
+  tamanho: string;
+  quantidade_arara: number;
+  quantidade_deposito: number;
 }
 
 export default function Produtos() {
+  const [variantes, setVariantes] = useState<Variante[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
@@ -39,27 +57,34 @@ export default function Produtos() {
   const [produtoParaRemover, setProdutoParaRemover] = useState<Produto | null>(null);
   const [removendo, setRemovendo] = useState(false);
   const [modalSucesso, setModalSucesso] = useState(false);
+  const [, setImagemPreview] = useState<string | null>(null);
   const [modalErro, setModalErro] = useState(false);
-  const [modalEstoque, setModalEstoque] = useState(false);
-  const [novoProdutoId, setNovoProdutoId] = useState<string | null>(null);
-  const [modalPerguntaEstoque, setModalPerguntaEstoque] = useState(false);
-
-  const [estoqueInicial, setEstoqueInicial] = useState({
-    arara: "",
-    deposito: ""
-  });
 
   async function buscarProdutos() {
     setLoadingProdutos(true);
-    const res = await api.get("/produtos");
-    setProdutos(res.data);
-    setLoadingProdutos(false);
+    try {
+      const res = await api.get("/produtos");
+      setProdutos(res.data);
+    } finally {
+      setLoadingProdutos(false);
+    }
   }
 
   async function buscarCategorias() {
     const res = await api.get("/categorias");
     setCategorias(res.data);
   }
+
+  const adicionarVariante = () => {
+    setVariantes([
+      ...variantes,
+      { variacao: "", tamanho: "", quantidade_arara: 0, quantidade_deposito: 0 },
+    ]);
+  };
+
+  const removerVariante = (index: number) => {
+    setVariantes(variantes.filter((_, i) => i !== index));
+  };
 
   async function buscarSubcategorias(categoriaId: string) {
     if (!categoriaId) return;
@@ -68,43 +93,40 @@ export default function Produtos() {
   }
 
   const handleFileChange = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setMensagem("Selecione apenas imagens.");
+      return;
+    }
+
+    // Cria o preview instantâneo para o usuário não esperar
+    const objectUrl = URL.createObjectURL(file);
+    setImagemPreview(objectUrl);
+
     try {
-      if (!file.type.startsWith("image/")) {
-        setMensagem("Selecione apenas imagens.");
-        return;
-      }
-
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1280,
-        useWebWorker: true,
-      };
-
+      setLoading(true);
+      const options = { maxSizeMB: 1, maxWidthOrHeight: 1280, useWebWorker: true };
       const compressedFile = await imageCompression(file, options);
-
       setImagemFile(compressedFile);
 
+      // Atualiza o modalProduto com o base64 para garantir a exibição
       const reader = new FileReader();
       reader.onloadend = () => {
         if (modalProduto) {
-          setModalProduto({
-            ...modalProduto,
-            imagem_url: reader.result as string,
-          });
+          setModalProduto({ ...modalProduto, imagem_url: reader.result as string });
         }
+        setLoading(false);
       };
-
       reader.readAsDataURL(compressedFile);
-
     } catch (err) {
       console.error(err);
+      setLoading(false);
       setMensagem("Erro ao processar imagem.");
     }
   };
-
   async function salvarProduto(p: Produto) {
     setTentouSalvar(true);
 
+    // Verificação básica
     if (!p.nome || !p.preco_venda || !p.subcategoria_id || !p.categoria_id) {
       setMensagem("Preencha todos os campos obrigatórios.");
       return;
@@ -113,35 +135,40 @@ export default function Produtos() {
     setLoading(true);
 
     try {
-      const precoVenda = p.preco_venda?.replace(",", ".");
-      const precoCompra = p.preco_compra?.replace(",", ".");
+      // CORREÇÃO AQUI: String(valor) garante que o replace funcione mesmo se vier número do banco
+      const precoVenda = String(p.preco_venda).replace(",", ".");
+      const precoCompra = p.preco_compra ? String(p.preco_compra).replace(",", ".") : "0";
+
+      const payloadVariantes =
+        variantes.length > 0
+          ? variantes
+          : [{
+            variacao: p.variacao || "Padrão",
+            tamanho: "Único",
+            quantidade_arara: 0,
+            quantidade_deposito: 0
+          }];
+
       const formData = new FormData();
       formData.append("nome", p.nome);
       formData.append("variacao", p.variacao || "");
-      formData.append("preco_venda", precoVenda || "");
-      formData.append("preco_compra", precoCompra || "");
+      formData.append("preco_venda", precoVenda);
+      formData.append("preco_compra", precoCompra);
       formData.append("subcategoria_id", p.subcategoria_id);
       formData.append("categoria_id", p.categoria_id);
 
-      if (imagemFile) {
-        formData.append("imagem", imagemFile);
-      }
+      if (imagemFile) formData.append("imagem", imagemFile);
+      formData.append("variantes", JSON.stringify(payloadVariantes));
 
       if (p.id) {
         await api.put(`/produtos/${p.id}`, formData);
         setMensagem("Produto atualizado!");
       } else {
-        const res = await api.post("/produtos", formData);
-
-        setMensagem("Produto criado!");
-
-        // pega ID do produto criado
-        setNovoProdutoId(res.data.id);
-        setModalPerguntaEstoque(true);
+        await api.post("/produtos", formData);
+        setMensagem("Produto criado com estoque!");
       }
 
       await buscarProdutos();
-
       setModalProduto(null);
       setImagemFile(null);
       setTentouSalvar(false);
@@ -155,50 +182,6 @@ export default function Produtos() {
     }
   }
 
-  async function salvarEstoqueInicial() {
-    if (!novoProdutoId) return;
-
-    const arara = Number(estoqueInicial.arara);
-    const deposito = Number(estoqueInicial.deposito);
-
-    if (isNaN(arara) || isNaN(deposito)) {
-      setMensagem("Valores de estoque inválidos.");
-      return;
-    }
-
-    try {
-      if (arara > 0) {
-        await api.post("/movimentacoes-estoque/ajustar", {
-          produto_id: novoProdutoId,
-          tipo: "entrada",
-          local: "arara",
-          quantidade: arara,
-          motivo: "Cadastro inicial",
-        });
-      }
-
-      if (deposito > 0) {
-        await api.post("/movimentacoes-estoque/ajustar", {
-          produto_id: novoProdutoId,
-          tipo: "entrada",
-          local: "deposito",
-          quantidade: deposito,
-          motivo: "Cadastro inicial",
-        });
-      }
-
-      setModalEstoque(false);
-      setEstoqueInicial({ arara: "", deposito: "" });
-      setNovoProdutoId(null);
-
-      await buscarProdutos();
-
-    } catch (err) {
-      console.error(err);
-      setMensagem("Erro ao salvar estoque.");
-    }
-  }
-
   function abrirConfirmacaoRemover(produto: Produto) {
     setProdutoParaRemover(produto);
     setModalConfirmarRemocao(true);
@@ -206,30 +189,18 @@ export default function Produtos() {
 
   async function confirmarRemocao() {
     if (!produtoParaRemover?.id) return;
-
     setRemovendo(true);
-
     try {
       await api.delete(`/produtos/${produtoParaRemover.id}`);
-
-      setProdutos((old) =>
-        old.filter((p) => p.id !== produtoParaRemover.id)
-      );
-
+      setProdutos((old) => old.filter((p) => p.id !== produtoParaRemover.id));
       setModalConfirmarRemocao(false);
       setProdutoParaRemover(null);
-
       setModalSucesso(true);
-
     } catch (err) {
-
       console.error(err);
       setModalErro(true);
-
     } finally {
-
       setRemovendo(false);
-
     }
   }
 
@@ -239,556 +210,387 @@ export default function Produtos() {
   }, []);
 
   return (
-    <main className="min-h-screen p-6 bg-gray-50 dark:bg-[#1a0a1d] transition-colors duration-300">
-
+    <main className="min-h-screen p-4 sm:p-6 bg-gray-50 dark:bg-[#1a0a1d] transition-colors duration-300">
+      {/* HEADER */}
       <header className="mb-6">
-        <h1 className="text-3xl sm:text-4xl font-bold text-[#590C42] dark:text-[#E8B7D4]">
-          Produtos
-        </h1>
-
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-1">
-          Gerencie produtos, categorias e subcategorias
-        </p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-[#590C42] dark:text-[#E8B7D4]">Produtos</h1>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-1">Gerencie produtos, categorias e subcategorias</p>
       </header>
 
+      {/* MENSAGEM */}
       {mensagem && (
-        <div className="mb-6 p-3 bg-pink-100 dark:bg-pink-800 text-pink-700 dark:text-pink-200 rounded-xl">
+        <div className="fixed top-4 right-4 z-[60] p-4 bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-100 rounded-2xl shadow-lg border border-pink-200 dark:border-pink-800 animate-bounce">
           {mensagem}
         </div>
       )}
 
+      {/* BOTÃO CRIAR */}
       <button
         onClick={() => {
-          setModalProduto({
-            nome: "",
-            variacao: "",
-            imagem_url: "",
-            preco_venda: "",
-            preco_compra: "",
-            categoria_id: "",
-            subcategoria_id: "",
-          });
-
+          setModalProduto({ nome: "", variacao: "", imagem_url: "", preco_venda: "", preco_compra: "", categoria_id: "", subcategoria_id: "" });
+          setVariantes([]);
           setImagemFile(null);
+          setImagemPreview(null); // Limpa o preview ao criar novo
           setTentouSalvar(false);
         }}
-        className="mb-6 px-6 py-3 bg-[#812C65] hover:bg-[#954A79] text-white font-bold rounded-xl transition-colors duration-300"
+        className="mb-6 flex items-center gap-2 px-6 py-3 bg-[#812C65] hover:bg-[#954A79] text-white font-bold rounded-2xl shadow-md transition-all active:scale-95"
       >
-        + Criar Produto
+        <FiPlus size={20} /> Criar Produto
       </button>
 
+      {/* GRID PRODUTOS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-
         {loadingProdutos
           ? Array.from({ length: 8 }).map((_, i) => (
-
-            <div
-              key={i}
-              className="animate-pulse bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md"
-            >
-
-              <div className="h-64 bg-gray-300 dark:bg-gray-700 rounded-lg mb-4" />
-
-              <div className="h-4 bg-gray-300 dark:bg-gray-700 mb-2 rounded" />
-
-              <div className="h-4 bg-gray-300 dark:bg-gray-700 w-2/3 rounded" />
-
+            <div key={i} className="animate-pulse bg-white dark:bg-gray-800 p-5 rounded-3xl shadow-md">
+              <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-2xl mb-4" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 mb-2 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 w-1/2 rounded" />
             </div>
-
           ))
           : produtos.map((prod) => (
-
-            <div
-              key={prod.id}
-              className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col"
-            >
-
-              <div className="h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3">
-
+            <div key={prod.id} className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col hover:shadow-xl transition-shadow">
+              <div className="relative group h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-2xl mb-4 overflow-hidden">
                 <img
-                  src={
-                    prod.imagem_url ||
-                    "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
-                  }
-                  className="max-h-full max-w-full object-contain"
+                  src={prod.imagem_url || "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"}
+                  alt={prod.nome}
+                  className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-110"
                 />
+              </div>
+              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 truncate">{prod.nome}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 italic">{prod.variacao || "Sem variação"}</p>
 
+              <div className="mt-auto space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Venda:</span>
+                  <span className="font-bold text-[#812C65] dark:text-[#E8B7D4]">R$ {prod.preco_venda}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-gray-50 dark:border-gray-700 pt-1">
+                  <span className="text-gray-500">Compra:</span>
+                  <span className="text-gray-700 dark:text-gray-300">R$ {prod.preco_compra}</span>
+                </div>
               </div>
 
-              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">
-                {prod.nome}
-              </h3>
-
-              <p className="text-gray-600 dark:text-gray-300">
-                {prod.variacao}
-              </p>
-
-              <p className="text-gray-700 dark:text-gray-200">
-                Venda: R$ {prod.preco_venda}
-              </p>
-
-              <p className="text-gray-700 dark:text-gray-200">
-                Compra: R$ {prod.preco_compra}
-              </p>
-
-              <div className="flex gap-3 mt-4">
-
+              <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => {
                     setModalProduto(prod);
-
-                    if (prod.categoria_id)
-                      buscarSubcategorias(prod.categoria_id);
-
+                    setImagemPreview(prod.imagem_url); // Define o preview da imagem existente
+                    if (prod.categoria_id) buscarSubcategorias(prod.categoria_id);
+                    setVariantes(prod.variantes?.map((v: any) => ({
+                      variacao: v.variacao,
+                      tamanho: v.tamanho,
+                      quantidade_arara: Number(v.quantidade_arara),
+                      quantidade_deposito: Number(v.quantidade_deposito),
+                    })) || []);
                     setTentouSalvar(false);
                   }}
-                  className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold transition-colors duration-300"
+                  className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2.5 rounded-xl font-bold text-sm transition-colors"
                 >
                   Editar
                 </button>
-
                 <button
                   onClick={() => abrirConfirmacaoRemover(prod)}
-                  className="flex-1 bg-pink-300 hover:bg-pink-400 text-white py-2 rounded-xl font-bold transition-colors duration-300"
+                  className="px-3 bg-pink-50 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 hover:bg-pink-100 rounded-xl transition-colors"
                 >
-                  Remover
+                  <FiTrash2 size={18} />
                 </button>
-
               </div>
-
             </div>
-
           ))}
       </div>
 
-      {modalProduto && (
-
+      {/* MODAL PRODUTO (Caprichado no Mobile) */ }
+  {
+    modalProduto && (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-hidden" onClick={() => setModalProduto(null)}>
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          onClick={() => setModalConfirmarRemocao(false)}
+          className="relative bg-white dark:bg-[#1f1222] w-full max-w-2xl rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col max-h-[95vh] animate-in slide-in-from-bottom duration-300"
+          onClick={(e) => e.stopPropagation()}
         >
+          {/* BARRA DE FECHAMENTO NO MOBILE */}
+          <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-3 sm:hidden" onClick={() => setModalProduto(null)} />
 
-          <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-
-            {loading && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl z-10">
-                <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-
-            <h2 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-100">
-              {modalProduto.id ? "Editar Produto" : "Criar Produto"}
+          {/* HEADER */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+              {modalProduto.id ? "Editar Produto" : "Novo Produto"}
             </h2>
+            <button onClick={() => setModalProduto(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 transition-colors">
+              <FiX size={24} />
+            </button>
+          </div>
 
-            <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">
-              Adicione uma foto do produto (opcional)
-            </p>
+          {/* CONTEÚDO COM SCROLL */}
+          <div className="overflow-y-auto p-6 space-y-6 flex-1 custom-scrollbar">
 
-            {/* IMAGEM (não clicável) */}
-            <div className="h-64 w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg mb-4 p-3">
+            {/* SEÇÃO IMAGEM E INFOS BÁSICAS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="relative aspect-square w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-[24px] border-2 border-dashed border-gray-200 dark:border-gray-700 overflow-hidden group">
+                  <img
+                    src={modalProduto.imagem_url || "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"}
+                    alt="Preview"
+                    className="max-h-full max-w-full object-contain p-4"
+                  />
+                  {loading && (
+                    <div className="absolute inset-0 bg-white/60 dark:bg-black/60 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-[#812C65] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
 
-              <img
-                src={
-                  modalProduto.imagem_url ||
-                  "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
-                }
-                className="max-h-full max-w-full object-contain"
-              />
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#812C65] text-white rounded-xl font-bold cursor-pointer hover:bg-[#954A79] active:scale-95 transition-all text-sm">
+                    <FiCamera size={18} /> Câmera
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} />
+                  </label>
+                  <label className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl font-bold cursor-pointer hover:bg-gray-200 active:scale-95 transition-all text-sm">
+                    <FiImage size={18} /> Galeria
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} />
+                  </label>
+                </div>
+              </div>
 
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Nome do Produto *</label>
+                  <input
+                    placeholder="Ex: Vestido Floral"
+                    value={modalProduto.nome || ""}
+                    onChange={(e) => setModalProduto({ ...modalProduto, nome: e.target.value })}
+                    className={`w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 dark:text-white ${tentouSalvar && !modalProduto.nome ? "border-red-400" : "border-transparent"} focus:bg-white dark:focus:bg-gray-800 focus:border-[#812C65] transition-all outline-none`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Cor / Estampa Base</label>
+                  <input
+                    placeholder="Ex: Vermelho ou Poá"
+                    value={modalProduto.variacao || ""}
+                    onChange={(e) => setModalProduto({ ...modalProduto, variacao: e.target.value })}
+                    className="w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 border-transparent dark:text-white focus:bg-white dark:focus:bg-gray-800 focus:border-[#812C65] transition-all outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Venda *</label>
+                    <input
+                      placeholder="0,00"
+                      value={modalProduto.preco_venda || ""}
+                      onChange={(e) => setModalProduto({ ...modalProduto, preco_venda: e.target.value })}
+                      className={`w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 border-transparent dark:text-white focus:border-[#812C65] outline-none  ${tentouSalvar && !modalProduto.preco_venda ? "border-red-400" : "border-transparent"}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Compra</label>
+                    <input
+                      placeholder="0,00"
+                      value={modalProduto.preco_compra || ""}
+                      onChange={(e) => setModalProduto({ ...modalProduto, preco_compra: e.target.value })}
+                      className="w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 border-transparent dark:text-white focus:border-[#812C65] outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* BOTÕES */}
-            <div className="flex gap-3 mb-4">
-
-              {/* CÂMERA */}
-              <label className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-3 rounded-xl text-center font-bold cursor-pointer transition">
-                📷 Câmera
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
+            {/* CATEGORIAS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Categoria *</label>
+                <select
+                  value={modalProduto.categoria_id || ""}
                   onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      handleFileChange(e.target.files[0]);
-                    }
+                    setModalProduto({ ...modalProduto, categoria_id: e.target.value, subcategoria_id: "" });
+                    buscarSubcategorias(e.target.value);
                   }}
-                />
-              </label>
+                  className={`w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 dark:text-white ${tentouSalvar && !modalProduto.categoria_id ? "border-red-400" : "border-transparent"} focus:border-[#812C65] outline-none appearance-none`}
+                >
+                  <option value="">Selecionar...</option>
+                  {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
+                </select>
+              </div>
 
-              {/* GALERIA */}
-              <label className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-3 rounded-xl text-center font-bold cursor-pointer transition">
-                🖼️ Galeria
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      handleFileChange(e.target.files[0]);
-                    }
-                  }}
-                />
-              </label>
-
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Subcategoria *</label>
+                <select
+                  value={modalProduto.subcategoria_id || ""}
+                  onChange={(e) => setModalProduto({ ...modalProduto, subcategoria_id: e.target.value })}
+                  className={`w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 dark:text-white ${tentouSalvar && !modalProduto.subcategoria_id ? "border-red-400" : "border-transparent"} focus:border-[#812C65] outline-none appearance-none`}
+                >
+                  <option value="">Selecionar...</option>
+                  {subcategorias.map((sub) => <option key={sub.id} value={sub.id}>{sub.nome}</option>)}
+                </select>
+              </div>
             </div>
 
-            {/* INPUTS */}
+            {/* VARIANTES / ESTOQUE */}
+            <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-800 dark:text-white uppercase text-sm tracking-widest">Estoque por Tamanho</h3>
+                <button
+                  type="button"
+                  onClick={adicionarVariante}
+                  className="flex items-center gap-1 text-sm font-bold text-[#812C65] hover:text-[#954A79] transition-colors"
+                >
+                  <FiPlus /> Adicionar
+                </button>
+              </div>
 
-            {[
-              { placeholder: "Nome (Ex.: Camiseta P)", key: "nome", required: true },
-              { placeholder: "Variação (Ex.: Vermelha, Azul)", key: "variacao", required: false },
-              { placeholder: "Preço Venda (Ex.: 50,00)", key: "preco_venda", required: true },
-              { placeholder: "Preço Compra (Ex.: 30,00)", key: "preco_compra", required: false },
-            ].map((input) => (
+              <div className="space-y-3">
+                {variantes.map((v, index) => (
+                  <div
+                    key={index}
+                    className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 relative group animate-in zoom-in-95"
+                  >
+                    <button
+                      onClick={() => removerVariante(index)}
+                      className="absolute -top-2 -right-2 w-7 h-7 bg-red-100 text-red-600 rounded-full flex items-center justify-center shadow-sm hover:bg-red-200 transition-colors"
+                    >
+                      <FiX size={14} />
+                    </button>
 
-              <div key={input.key} className="mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Cor</label>
+                        <input
+                          placeholder="Cor"
+                          value={v.variacao || ""}
+                          onChange={(e) => {
+                            const newVar = [...variantes];
+                            newVar[index].variacao = e.target.value;
+                            setVariantes(newVar);
+                          }}
+                          className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 dark:text-white py-1 outline-none focus:border-[#812C65]"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Tam</label>
+                        <input
+                          placeholder="G, P, 42..."
+                          value={v.tamanho || ""}
+                          onChange={(e) => {
+                            const newVar = [...variantes];
+                            newVar[index].tamanho = e.target.value;
+                            setVariantes(newVar);
+                          }}
+                          className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 dark:text-white py-1 outline-none focus:border-[#812C65]"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Arara</label>
+                        <input
+                          type="number"
+                          value={v.quantidade_arara}
+                          onChange={(e) => {
+                            const newVar = [...variantes];
+                            newVar[index].quantidade_arara = Number(e.target.value);
+                            setVariantes(newVar);
+                          }}
+                          className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 dark:text-white py-1 outline-none focus:border-[#812C65]"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Depósito</label>
+                        <input
+                          type="number"
+                          value={v.quantidade_deposito}
+                          onChange={(e) => {
+                            const newVar = [...variantes];
+                            newVar[index].quantidade_deposito = Number(e.target.value);
+                            setVariantes(newVar);
+                          }}
+                          className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 dark:text-white py-1 outline-none focus:border-[#812C65]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-                <input
-                  placeholder={input.placeholder}
-                  value={(modalProduto as any)[input.key] || ""}
-                  onChange={(e) =>
-                    setModalProduto({
-                      ...modalProduto,
-                      [input.key]: e.target.value
-                    })
-                  }
-                  className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${input.required && tentouSalvar && !(modalProduto as any)[input.key]
-                    ? "border-red-500"
-                    : "border-transparent"
-                    }`}
-                />
-
-                {input.required && tentouSalvar && !(modalProduto as any)[input.key] && (
-                  <p className="text-red-500 text-sm mt-1">
-                    Preencha este campo!
+                {variantes.length === 0 && (
+                  <p className="text-center py-6 text-gray-400 text-sm italic border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl">
+                    Nenhuma variante adicionada.
                   </p>
                 )}
-
               </div>
-
-            ))}
-
-            {/* SELECTS */}
-
-            <div className="mb-3">
-
-              <select
-                value={modalProduto.categoria_id || ""}
-                onChange={(e) => {
-
-                  setModalProduto({
-                    ...modalProduto,
-                    categoria_id: e.target.value,
-                    subcategoria_id: "",
-                  });
-
-                  buscarSubcategorias(e.target.value);
-
-                }}
-                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${tentouSalvar && !modalProduto.categoria_id
-                  ? "border-red-500"
-                  : "border-transparent"
-                  }`}
-              >
-
-                <option value="">
-                  Selecione Categoria
-                </option>
-
-                {categorias.map((cat) => (
-
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nome}
-                  </option>
-
-                ))}
-
-              </select>
-
-              {tentouSalvar && !modalProduto.categoria_id && (
-                <p className="text-red-500 text-sm mt-1">
-                  Escolha uma categoria!
-                </p>
-              )}
-
             </div>
-
-            <div className="mb-3">
-
-              <select
-                value={modalProduto.subcategoria_id || ""}
-                onChange={(e) =>
-                  setModalProduto({
-                    ...modalProduto,
-                    subcategoria_id: e.target.value
-                  })
-                }
-                className={`w-full p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border ${tentouSalvar && !modalProduto.subcategoria_id
-                  ? "border-red-500"
-                  : "border-transparent"
-                  }`}
-              >
-
-                <option value="">
-                  Selecione Subcategoria
-                </option>
-
-                {subcategorias.map((sub) => (
-
-                  <option key={sub.id} value={sub.id}>
-                    {sub.nome}
-                  </option>
-
-                ))}
-
-              </select>
-
-              {tentouSalvar && !modalProduto.subcategoria_id && (
-                <p className="text-red-500 text-sm mt-1">
-                  Escolha uma subcategoria!
-                </p>
-              )}
-
-            </div>
-
-            <div className="flex justify-end gap-3 mt-4">
-
-              <button
-                onClick={() => setModalProduto(null)}
-                className="px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white rounded-xl font-bold"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={() => salvarProduto(modalProduto)}
-                disabled={loading}
-                className={`px-4 py-2 bg-[#812C65] hover:bg-[#954A79] text-white rounded-xl font-bold flex items-center gap-2 ${loading ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-              >
-
-                {loading && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                )}
-
-                {loading ? "Salvando..." : "Salvar"}
-
-              </button>
-
-            </div>
-
           </div>
 
-        </div>
-
-      )}
-      {modalConfirmarRemocao && (
-
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm shadow-xl">
-
-            <h2 className="text-xl font-bold mb-3 text-gray-800 dark:text-gray-100">
-              Remover Produto
-            </h2>
-
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Tem certeza que deseja remover
-              <span className="font-bold">
-                {" "} {produtoParaRemover?.nome}
-              </span> ?
-            </p>
-
-            <div className="flex justify-end gap-3">
-
-              <button
-                onClick={() => setModalConfirmarRemocao(false)}
-                className="px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white rounded-xl font-bold"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={confirmarRemocao}
-                disabled={removendo}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold flex items-center gap-2"
-              >
-
-                {removendo && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                )}
-
-                {removendo ? "Removendo..." : "Remover"}
-
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-      {modalSucesso && (
-
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
-
-            <h2 className="text-xl font-bold text-green-600 mb-3">
-              Sucesso
-            </h2>
-
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Produto removido com sucesso!
-            </p>
-
+          {/* RODAPÉ / AÇÕES */}
+          <div className="p-6 bg-gray-50 dark:bg-gray-900/80 grid grid-cols-2 gap-3 sm:flex sm:justify-end border-t border-gray-100 dark:border-gray-800 rounded-b-[32px]">
             <button
-              onClick={() => setModalSucesso(false)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold"
+              onClick={() => setModalProduto(null)}
+              className="px-6 py-3.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl font-bold shadow-sm active:scale-95 transition-all order-2 sm:order-1 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              OK
+              Cancelar
             </button>
-
-          </div>
-
-        </div>
-
-      )}
-
-      {modalPerguntaEstoque && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
-
-            <h2 className="text-xl font-bold mb-3 text-gray-800 dark:text-gray-100">
-              Produto criado!
-            </h2>
-
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Deseja adicionar estoque agora?
-            </p>
-
-            <div className="flex gap-3">
-
-              <button
-                onClick={() => {
-                  setModalPerguntaEstoque(false);
-                }}
-                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-xl font-bold"
-              >
-                Não
-              </button>
-
-              <button
-                onClick={() => {
-                  setModalPerguntaEstoque(false);
-                  setModalEstoque(true);
-                }}
-                className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold"
-              >
-                Sim
-              </button>
-
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {modalEstoque && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
-
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100 text-center">
-              📦 Estoque Inicial
-            </h2>
-
-            <div className="flex flex-col gap-4">
-
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-xl flex justify-between items-center">
-                <span className="font-medium text-gray-700 dark:text-gray-200">
-                  Arara
-                </span>
-
-                <input
-                  type="number"
-                  value={estoqueInicial.arara}
-                  onChange={(e) =>
-                    setEstoqueInicial({ ...estoqueInicial, arara: e.target.value })
-                  }
-                  className="w-20 text-center p-2 rounded-lg bg-white dark:bg-gray-800"
-                />
-              </div>
-
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-xl flex justify-between items-center">
-                <span className="font-medium text-gray-700 dark:text-gray-200">
-                  Depósito
-                </span>
-
-                <input
-                  type="number"
-                  value={estoqueInicial.deposito}
-                  onChange={(e) =>
-                    setEstoqueInicial({ ...estoqueInicial, deposito: e.target.value })
-                  }
-                  className="w-20 text-center p-2 rounded-lg bg-white dark:bg-gray-800"
-                />
-              </div>
-
-            </div>
-
-            <div className="flex gap-3 mt-6">
-
-              <button
-                onClick={() => setModalEstoque(false)}
-                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-xl font-bold"
-              >
-                Pular
-              </button>
-
-              <button
-                onClick={salvarEstoqueInicial}
-                className="flex-1 bg-[#812C65] hover:bg-[#954A79] text-white py-2 rounded-xl font-bold"
-              >
-                Salvar
-              </button>
-
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {modalErro && (
-
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
-
-            <h2 className="text-xl font-bold text-red-600 mb-3">
-              Erro
-            </h2>
-
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Não foi possível remover o produto.
-            </p>
-
             <button
-              onClick={() => setModalErro(false)}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold"
+              onClick={() => salvarProduto(modalProduto)}
+              disabled={loading}
+              className={`px-8 py-3.5 bg-[#812C65] text-white rounded-2xl font-bold shadow-lg shadow-pink-900/20 flex items-center justify-center gap-2 active:scale-95 transition-all order-1 sm:order-2 ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#954A79]"}`}
             >
-              Fechar
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FiSave size={20} />
+              )}
+              Salvar
             </button>
-
           </div>
-
         </div>
+      </div>
+    )
+  }
 
-      )}
-    </main>
+  {/* MODAL CONFIRMAR REMOÇÃO */ }
+  {
+    modalConfirmarRemocao && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-[32px] w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FiTrash2 size={32} />
+          </div>
+          <h2 className="text-2xl font-bold mb-2 text-center text-gray-800 dark:text-white">Remover?</h2>
+          <p className="text-gray-600 dark:text-gray-300 text-center mb-8">
+            Deseja mesmo apagar <span className="font-bold text-gray-800 dark:text-white">{produtoParaRemover?.nome}</span>? Esta ação não pode ser desfeita.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setModalConfirmarRemocao(false)} className="px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl font-bold transition-all active:scale-95">Não</button>
+            <button onClick={confirmarRemocao} disabled={removendo} className="px-4 py-3 bg-red-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-red-900/20">
+              {removendo ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Sim, apagar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* MODAL SUCESSO / ERRO (Simplificados) */ }
+  {
+    (modalSucesso || modalErro) && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-[32px] w-full max-w-xs text-center shadow-2xl animate-in zoom-in-95">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${modalSucesso ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+            {modalSucesso ? '✓' : '✕'}
+          </div>
+          <h2 className={`text-xl font-bold mb-2 ${modalSucesso ? 'text-green-600' : 'text-red-600'}`}>
+            {modalSucesso ? 'Tudo certo!' : 'Algo deu errado'}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            {modalSucesso ? 'O produto foi removido.' : 'Não conseguimos processar sua solicitação.'}
+          </p>
+          <button
+            onClick={() => { setModalSucesso(false); setModalErro(false); }}
+            className={`w-full py-3 text-white rounded-2xl font-bold transition-all active:scale-95 ${modalSucesso ? 'bg-green-600 shadow-green-900/20' : 'bg-red-600 shadow-red-900/20'} shadow-lg`}
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    )
+  }
+    </main >
   );
 }
