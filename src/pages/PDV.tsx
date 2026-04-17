@@ -4,20 +4,11 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { useCarrinho } from "../context/CarrinhoContext";
 import Card from "../components/Card";
-import { FiX, FiShoppingCart, FiFilter, FiPackage } from "react-icons/fi";
+import { FiX, FiShoppingCart, FiAlertCircle } from "react-icons/fi";
 
 // --- INTERFACES ---
-interface Categoria {
-  id: number;
-  nome: string;
-}
-
-interface Subcategoria {
-  id: number;
-  categoria_id: number;
-  nome: string;
-}
-
+interface Categoria { id: number; nome: string; }
+interface Subcategoria { id: number; categoria_id: number; nome: string; }
 interface Variante {
   id: number;
   variacao: string;
@@ -25,16 +16,6 @@ interface Variante {
   quantidade_arara: number;
   quantidade_deposito: number;
 }
-
-interface ProdutoRespostaAPI {
-  id: number;
-  nome: string;
-  preco_venda: string;
-  imagem_url: string | null;
-  subcategoria_id: number;
-  variantes: Variante[];
-}
-
 interface Produto {
   id: number;
   nome: string;
@@ -61,18 +42,18 @@ export default function PDV() {
     try {
       const token = localStorage.getItem("token");
       const [prodRes, catRes, subRes] = await Promise.all([
-        api.get<ProdutoRespostaAPI[]>("/produtos", { headers: { Authorization: `Bearer ${token}` } }),
-        api.get<Categoria[]>("/categorias", { headers: { Authorization: `Bearer ${token}` } }),
-        api.get<Subcategoria[]>("/subcategorias", { headers: { Authorization: `Bearer ${token}` } }),
+        api.get("/produtos", { headers: { Authorization: `Bearer ${token}` } }),
+        api.get("/categorias", { headers: { Authorization: `Bearer ${token}` } }),
+        api.get("/subcategorias", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
-      const formatados: Produto[] = prodRes.data.map((p) => ({
+      const formatados: Produto[] = prodRes.data.map((p: any) => ({
         id: p.id,
         nome: p.nome,
         preco: parseFloat(p.preco_venda) || 0,
         imagem_url: p.imagem_url || "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
         subcategoria_id: p.subcategoria_id,
-        variantes: p.variantes || []
+        variantes: p.variantes || [] // Garante que nunca seja null
       }));
 
       setProdutos(formatados);
@@ -90,7 +71,6 @@ export default function PDV() {
   const totalItens = carrinho.reduce((acc, item) => acc + item.quantidade, 0);
   const valorTotalCarrinho = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
 
-  // Linha 83 do seu código - O ajuste ideal:
   const handleAdicionarVariante = (variante: Variante, origem: 'arara' | 'deposito') => {
     if (!produtoSelecionado) return;
     const estoqueDisponivel = origem === 'arara' ? variante.quantidade_arara : variante.quantidade_deposito;
@@ -98,17 +78,16 @@ export default function PDV() {
     if (estoqueDisponivel <= 0) return;
 
     adicionar({
-      // ESSENCIAL: O contexto deve usar esse ID para diferenciar os itens
       id_carrinho: `${produtoSelecionado.id}-${variante.id}-${origem}`,
       id: produtoSelecionado.id,
       id_variante: variante.id,
       nome: produtoSelecionado.nome,
-      tamanho: variante.tamanho,      // Agora o carrinho sabe o tamanho
-      variacao: variante.variacao,    // Agora o carrinho sabe a cor/modelo
+      tamanho: variante.tamanho,
+      variacao: variante.variacao,
       preco: produtoSelecionado.preco,
       imagem_url: produtoSelecionado.imagem_url,
       quantidade: 1,
-      origem: origem,                 // Agora o carrinho sabe se é Arara ou Depósito
+      origem: origem,
       estoque: estoqueDisponivel
     } as any);
 
@@ -132,34 +111,28 @@ export default function PDV() {
       {/* HEADER */}
       <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-[#590C42] dark:text-[#E8B7D4] tracking-tight">
-            PDV
-          </h1>
+          <h1 className="text-4xl font-extrabold text-[#590C42] dark:text-[#E8B7D4] tracking-tight">PDV</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Fluxo de Venda Rápida</p>
         </div>
 
-        {/* FILTROS */}
         <div className="flex flex-wrap gap-3">
-          <div className="relative group">
-            <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#812C65]" />
-            <select
-              value={categoriaSelecionada ?? ""}
-              onChange={(e) => {
-                setCategoriaSelecionada(e.target.value ? Number(e.target.value) : null);
-                setSubcategoriaSelecionada(null);
-              }}
-              className="pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border-none rounded-2xl shadow-sm focus:ring-2 ring-[#812C65] dark:text-gray-200 text-sm transition-all appearance-none cursor-pointer min-w-[180px]"
-            >
-              <option value="">Todas Categorias</option>
-              {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
+          <select
+            value={categoriaSelecionada ?? ""}
+            onChange={(e) => {
+              setCategoriaSelecionada(e.target.value ? Number(e.target.value) : null);
+              setSubcategoriaSelecionada(null);
+            }}
+            className="px-4 py-2.5 bg-white dark:bg-gray-800 border-none rounded-2xl shadow-sm focus:ring-2 ring-[#812C65] dark:text-gray-200 text-sm appearance-none cursor-pointer min-w-[160px]"
+          >
+            <option value="">Todas Categorias</option>
+            {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
 
           <select
             disabled={!categoriaSelecionada}
             value={subcategoriaSelecionada ?? ""}
             onChange={(e) => setSubcategoriaSelecionada(e.target.value ? Number(e.target.value) : null)}
-            className="px-4 py-2.5 bg-white dark:bg-gray-800 border-none rounded-2xl shadow-sm focus:ring-2 ring-[#812C65] dark:text-gray-200 text-sm transition-all appearance-none cursor-pointer min-w-[180px] disabled:opacity-50"
+            className="px-4 py-2.5 bg-white dark:bg-gray-800 border-none rounded-2xl shadow-sm focus:ring-2 ring-[#812C65] dark:text-gray-200 text-sm appearance-none cursor-pointer min-w-[160px] disabled:opacity-50"
           >
             <option value="">Todas Subcategorias</option>
             {subcategoriasFiltradas.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -169,16 +142,16 @@ export default function PDV() {
 
       {/* ÁREA DE PRODUTOS */}
       {carregando ? (
-        <div className="flex flex-col items-center justify-center h-[50vh]">
-          <div className="w-12 h-12 border-4 border-t-[#812C65] border-pink-200 dark:border-pink-900/30 rounded-full animate-spin"></div>
+        <div className="flex items-center justify-center h-[50vh]">
+          <div className="w-12 h-12 border-4 border-t-[#812C65] border-pink-200 rounded-full animate-spin"></div>
         </div>
       ) : (
-        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-32">
+        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 pb-32">
           {produtosFiltrados.map((produto) => (
             <div
               key={produto.id}
-              className="transform transition-all active:scale-95 hover:translate-y-[-4px] cursor-pointer"
-              onClick={() => { setProdutoSelecionado(produto); }}
+              className="transform transition-all active:scale-95 cursor-pointer"
+              onClick={() => setProdutoSelecionado(produto)}
             >
               <Card
                 id={produto.id}
@@ -197,58 +170,66 @@ export default function PDV() {
         </section>
       )}
 
-      {/* MODAL DE VARIANTES */}
+      {/* MODAL DE VARIANTES - CORREÇÃO AQUI */}
       {produtoSelecionado && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setProdutoSelecionado(null)}></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setProdutoSelecionado(null)}></div>
 
-          <div className="relative bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 border border-white/10">
-            {/* Header Modal */}
+          <div className="relative bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+            {/* Header */}
             <div className="p-6 bg-[#812C65] text-white">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <FiPackage className="text-pink-300" size={24} />
-                  <h2 className="text-xl font-bold tracking-tight">Estoque da Peça</h2>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold leading-tight">{produtoSelecionado.nome}</h2>
+                  <p className="text-pink-200 text-xs mt-1 uppercase tracking-widest font-bold">Selecione o Tamanho/Cor</p>
                 </div>
-                <button onClick={() => setProdutoSelecionado(null)} className="p-2 hover:bg-black/10 rounded-full">
+                <button onClick={() => setProdutoSelecionado(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                   <FiX size={24} />
                 </button>
               </div>
-              <p className="text-pink-100 text-sm mt-2 opacity-80">{produtoSelecionado.nome}</p>
             </div>
 
-            {/* Listagem Variantes */}
-            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4">
-              {produtoSelecionado.variantes.map(v => (
-                <div key={v.id} className="p-4 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 transition-all">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-lg font-black text-gray-800 dark:text-gray-100">
-                      Tam: <span className="text-[#812C65] dark:text-[#E8B7D4] uppercase">{v.tamanho}</span>
-                    </span>
-                    <span className="px-3 py-1 bg-white dark:bg-gray-800 rounded-full text-[10px] font-bold text-gray-400 shadow-sm uppercase">{v.variacao}</span>
-                  </div>
+            {/* Listagem */}
+            <div className="p-4 sm:p-6 max-h-[60vh] overflow-y-auto space-y-3">
+              {produtoSelecionado.variantes.length > 0 ? (
+                produtoSelecionado.variantes.map(v => (
+                  <div key={v.id} className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-black text-gray-700 dark:text-gray-200 uppercase">
+                        Tam: {v.tamanho}
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-400 bg-white dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm uppercase">
+                        {v.variacao}
+                      </span>
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => handleAdicionarVariante(v, 'arara')}
-                      disabled={v.quantidade_arara <= 0}
-                      className="flex flex-col items-center p-3 rounded-2xl border-2 border-pink-100 dark:border-pink-900/20 hover:border-[#812C65] dark:hover:border-[#E8B7D4] disabled:opacity-30 transition-all active:scale-95"
-                    >
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">Arara</span>
-                      <span className="text-xl font-black text-gray-700 dark:text-gray-200">{v.quantidade_arara}</span>
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleAdicionarVariante(v, 'arara')}
+                        disabled={v.quantidade_arara <= 0}
+                        className="flex flex-col items-center justify-center p-2 rounded-xl border-2 border-pink-100 dark:border-pink-900/20 hover:border-[#812C65] disabled:opacity-20 transition-all active:scale-95"
+                      >
+                        <span className="text-[9px] font-black text-gray-400 uppercase">Arara</span>
+                        <span className="text-lg font-black text-[#812C65] dark:text-pink-400">{v.quantidade_arara}</span>
+                      </button>
 
-                    <button
-                      onClick={() => handleAdicionarVariante(v, 'deposito')}
-                      disabled={v.quantidade_deposito <= 0}
-                      className="flex flex-col items-center p-3 rounded-2xl border-2 border-purple-100 dark:border-purple-900/20 hover:border-[#812C65] dark:hover:border-[#E8B7D4] disabled:opacity-30 transition-all active:scale-95"
-                    >
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">Depósito</span>
-                      <span className="text-xl font-black text-gray-700 dark:text-gray-200">{v.quantidade_deposito}</span>
-                    </button>
+                      <button
+                        onClick={() => handleAdicionarVariante(v, 'deposito')}
+                        disabled={v.quantidade_deposito <= 0}
+                        className="flex flex-col items-center justify-center p-2 rounded-xl border-2 border-purple-100 dark:border-purple-900/20 hover:border-[#812C65] disabled:opacity-20 transition-all active:scale-95"
+                      >
+                        <span className="text-[9px] font-black text-gray-400 uppercase">Depósito</span>
+                        <span className="text-lg font-black text-purple-600 dark:text-purple-400">{v.quantidade_deposito}</span>
+                      </button>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <FiAlertCircle size={48} className="text-amber-500 mb-2" />
+                  <p className="text-gray-500 font-bold">Nenhum estoque disponível para este produto.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -256,20 +237,20 @@ export default function PDV() {
 
       {/* BARRA DE CARRINHO FIXA */}
       {carrinho.length > 0 && (
-        <div className="fixed bottom-8 left-0 right-0 px-4 flex justify-center z-[90]">
+        <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-[90]">
           <button
             onClick={() => navigate("/pdv/carrinho")}
-            className="flex items-center gap-6 bg-[#812C65] dark:bg-[#590C42] text-white px-8 py-4 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all transform hover:-translate-y-1 active:scale-95 border border-white/10"
+            className="flex items-center gap-4 bg-[#812C65] text-white px-6 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/20 w-full max-w-xs sm:max-w-sm"
           >
-            <div className="relative bg-white/10 p-2 rounded-full">
-              <FiShoppingCart size={22} />
-              <span className="absolute -top-1 -right-1 bg-pink-500 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
+            <div className="relative bg-white/20 p-2 rounded-xl">
+              <FiShoppingCart size={20} />
+              <span className="absolute -top-2 -right-2 bg-pink-500 text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#812C65]">
                 {totalItens}
               </span>
             </div>
-            <div className="text-left">
-              <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">Ver Carrinho</p>
-              <p className="text-lg font-bold leading-tight">
+            <div className="text-left flex-1">
+              <p className="text-[10px] font-bold opacity-70 uppercase tracking-tighter">Ver Sacola</p>
+              <p className="text-lg font-black leading-none">
                 R$ {valorTotalCarrinho.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
