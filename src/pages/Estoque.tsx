@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import api from "../api/api";
 import { FiSearch, FiAlertTriangle, FiEdit3, FiPackage, FiLayers, FiMinus, FiPlus, FiX } from "react-icons/fi";
 
-// 1. RECOLOQUE AS INTERFACES (Isso resolve o erro "Cannot find name 'Estoque'")
 interface Estoque {
   id: number;
   produto_id: number;
@@ -27,6 +26,9 @@ export default function EstoquePage() {
   const [filtro, setFiltro] = useState("");
   const [mostrarEstoqueBaixo, setMostrarEstoqueBaixo] = useState(false);
 
+  // LOGICA DE ACESSO: Altere aqui ou venha do seu Context de Auth
+  const isAdmin = false; 
+
   useEffect(() => {
     fetchEstoques();
   }, []);
@@ -44,8 +46,10 @@ export default function EstoquePage() {
     }
   }
 
-  // 2. FUNÇÃO ABRIR MODAL (Resolve o erro "Cannot find name 'abrirModal'")
   function abrirModal(item: Estoque) {
+    // Bloqueio de segurança adicional
+    if (!isAdmin) return;
+
     setModalItem({
       ...item,
       nova_arara: String(item.quantidade_arara),
@@ -61,7 +65,7 @@ export default function EstoquePage() {
   };
 
   async function salvarAlteracoes() {
-    if (!modalItem) return;
+    if (!modalItem || !isAdmin) return;
     setLoading(true);
 
     try {
@@ -101,7 +105,7 @@ export default function EstoquePage() {
       setMensagem("Estoque atualizado!");
       await fetchEstoques();
       setModalItem(null);
-    } catch (error: any) { // Mudado de 'err' para 'error' para evitar conflito de nomes
+    } catch (error: any) {
       console.error(error);
       setMensagem("Erro ao salvar.");
     } finally {
@@ -128,8 +132,10 @@ export default function EstoquePage() {
         
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
-            <h1 className="text-4xl font-black text-[#590C42] dark:text-[#E8B7D4] tracking-tight">Gestão de Grade</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Controle total de variantes e locais.</p>
+            <h1 className="text-4xl font-black text-[#590C42] dark:text-[#E8B7D4] tracking-tight">Consulta de Estoque</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                {isAdmin ? "Gerenciamento total de estoque." : "Visualização de saldos e variantes."}
+            </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -171,7 +177,7 @@ export default function EstoquePage() {
                 <th className="p-6 text-xs font-black uppercase tracking-wider text-gray-400 text-center">Arara</th>
                 <th className="p-6 text-xs font-black uppercase tracking-wider text-gray-400 text-center">Depósito</th>
                 <th className="p-6 text-xs font-black uppercase tracking-wider text-gray-400 text-center">Total</th>
-                <th className="p-6 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Ação</th>
+                {isAdmin && <th className="p-6 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Ação</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-white/5">
@@ -217,14 +223,16 @@ export default function EstoquePage() {
                     </div>
                   </td>
 
-                  <td className="p-6 text-right">
-                    <button
-                      onClick={() => abrirModal(item)}
-                      className="w-full md:w-auto p-3 md:p-4 bg-gray-100 dark:bg-white/10 hover:bg-[#812C65] hover:text-white rounded-2xl transition-all"
-                    >
-                      <FiEdit3 className="inline-block" />
-                    </button>
-                  </td>
+                  {isAdmin && (
+                    <td className="p-6 text-right">
+                        <button
+                        onClick={() => abrirModal(item)}
+                        className="w-full md:w-auto p-3 md:p-4 bg-gray-100 dark:bg-white/10 hover:bg-[#812C65] hover:text-white rounded-2xl transition-all"
+                        >
+                        <FiEdit3 className="inline-block" />
+                        </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -232,8 +240,8 @@ export default function EstoquePage() {
         </div>
       </div>
 
-      {/* Modal Ajustar Estoque */}
-      {modalItem && (
+      {/* Modal Ajustar Estoque - Apenas acessível se isAdmin por causa da função abrirModal */}
+      {modalItem && isAdmin && (
         <div className="fixed inset-0 bg-[#120514]/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-[#1A0B1C] p-8 rounded-[3rem] w-full max-w-md shadow-2xl border border-white/10 animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-start mb-6">
