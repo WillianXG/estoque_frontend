@@ -12,6 +12,8 @@ export default function Sidebar({ isOpen, onClose }: Props) {
 
   const routes = [
     { path: "/", name: "Dashboard", roles: ["admin"] },
+    { path: "/caixa", name: "Caixa", roles: ["admin"] },
+    { path: "/historicoCaixa", name: "Histórico de Caixas", roles: ["admin"] },
     { path: "/categorias", name: "Categorias", roles: ["admin"] },
     { path: "/produtos", name: "Produtos", roles: ["admin"] },
     { path: "/vendas", name: "Vendas", roles: ["admin"] },

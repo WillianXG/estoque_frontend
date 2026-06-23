@@ -13,6 +13,8 @@ import PDV from "./pages/PDV";
 import Carrinho from "./pages/Carrinho";
 import Estoque from "./pages/Estoque";
 import MovimentacaoPage from "./pages/MovimentacaoEstoque";
+import Caixa  from "./pages/Caixa";
+import HistoricoCaixaPage from "./pages/HistoricoCaixa";
 
 function App() {
   return (
@@ -55,7 +57,7 @@ function App() {
               <Route
                 path="/produtos"
                 element={
-                  <PrivateRoute roles={["admin", "vendedora"]}>
+                  <PrivateRoute roles={["admin"]}>
                     <Produtos />
                   </PrivateRoute>
                 }
@@ -113,6 +115,22 @@ function App() {
                 element={
                   <PrivateRoute roles={["admin", "vendedora"]}>
                     <Estoque />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/caixa"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <Caixa />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/historicoCaixa"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <HistoricoCaixaPage />
                   </PrivateRoute>
                 }
               />
