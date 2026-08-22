@@ -14,7 +14,7 @@ interface Variante {
   tamanho: string;
   quantidade_arara: number;
   quantidade_deposito: number;
-  imagem_url?: string; // Suporte à imagem por variação
+  imagem_url?: string;
 }
 interface Produto {
   id: number;
@@ -33,7 +33,7 @@ export default function PDV() {
   const [subcategoriaSelecionada, setSubcategoriaSelecionada] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
 
-  // Estados para seleção no Card estilo E-commerce
+  // Estados para seleção no Card
   const [variacoesSelecionadas, setVariacoesSelecionadas] = useState<{ [produtoId: number]: string }>({});
   const [tamanhosSelecionados, setTamanhosSelecionados] = useState<{ [produtoId: number]: string }>({});
 
@@ -76,32 +76,29 @@ export default function PDV() {
 
   const handleSelecionarCor = (produtoId: number, cor: string) => {
     setVariacoesSelecionadas(prev => ({ ...prev, [produtoId]: cor }));
-    setTamanhosSelecionados(prev => ({ ...prev, [produtoId]: "" })); // Reseta tamanho ao trocar a cor
+    setTamanhosSelecionados(prev => ({ ...prev, [produtoId]: "" }));
   };
 
   const handleSelecionarTamanho = (produtoId: number, tamanho: string) => {
     setTamanhosSelecionados(prev => ({ ...prev, [produtoId]: tamanho }));
   };
 
-  const handleAdicionarAoCarrinho = (produto: Produto, origem: 'arara' | 'deposito' = 'arara') => {
-    const cor = variacoesSelecionadas[produto.id];
-    const tamanho = tamanhosSelecionados[produto.id];
-
-    if (!cor || !tamanho) return;
+  const handleAdicionarAoCarrinho = (produto: Produto, corAtiva: string, tamanhoAtivo: string) => {
+    if (!corAtiva || !tamanhoAtivo) return;
 
     const varianteEncontrada = produto.variantes.find(
-      v => v.variacao === cor && v.tamanho === tamanho
+      v => v.variacao === corAtiva && v.tamanho === tamanhoAtivo
     );
 
     if (!varianteEncontrada) return;
 
+    const origem = varianteEncontrada.quantidade_arara > 0 ? 'arara' : 'deposito';
     const estoqueDisponivel = origem === 'arara' 
       ? varianteEncontrada.quantidade_arara 
       : varianteEncontrada.quantidade_deposito;
 
     if (estoqueDisponivel <= 0) return;
 
-    // Usa a imagem da variante, se existir, ou a imagem geral do produto
     const imagemFinal = varianteEncontrada.imagem_url || produto.imagem_url;
 
     adicionar({
@@ -174,24 +171,25 @@ export default function PDV() {
         <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-32">
           {produtosFiltrados.map((produto) => {
             const coresDisponiveis = Array.from(new Set(produto.variantes.map(v => v.variacao)));
-            const corSelecionada = variacoesSelecionadas[produto.id] || coresDisponiveis[0] || "";
+            
+            // Auto-seleciona a primeira cor se não houver seleção
+            const corSelecionada = variacoesSelecionadas[produto.id] ?? coresDisponiveis[0] ?? "";
 
             const tamanhosDisponiveis = produto.variantes
               .filter(v => v.variacao === corSelecionada)
               .map(v => v.tamanho);
 
-            const tamanhoSelecionado = tamanhosSelecionados[produto.id] || "";
+            // Auto-seleciona o primeiro tamanho disponível para a cor
+            const tamanhoSelecionado = tamanhosSelecionados[produto.id] || tamanhosDisponiveis[0] || "";
 
             const varianteAtual = produto.variantes.find(
               v => v.variacao === corSelecionada && v.tamanho === tamanhoSelecionado
             );
 
-            // Busca se existe uma variante com essa cor que possua foto específica
             const varianteComImagem = produto.variantes.find(
               v => v.variacao === corSelecionada && v.imagem_url
             );
 
-            // Define a imagem exibida no Card
             const imagemExibida = varianteComImagem?.imagem_url || produto.imagem_url;
 
             const temEstoque = varianteAtual 
@@ -205,7 +203,7 @@ export default function PDV() {
                 key={produto.id}
                 className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col border border-gray-100 dark:border-gray-800"
               >
-                {/* Imagem Dinâmica por Variação */}
+                {/* Imagem Dinâmica */}
                 <div className="relative h-64 w-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                   <img
                     src={imagemExibida}
@@ -233,7 +231,7 @@ export default function PDV() {
                             <button
                               key={cor}
                               onClick={() => handleSelecionarCor(produto.id, cor)}
-                              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                                 ativa
                                   ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
                                   : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
@@ -268,8 +266,8 @@ export default function PDV() {
                                 semEstoqueItem
                                   ? "bg-gray-100 text-gray-300 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed line-through"
                                   : ativo
-                                  ? "bg-[#00D66C] text-white shadow-sm"
-                                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                                  ? "bg-[#00D66C] text-white shadow-sm cursor-pointer"
+                                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 cursor-pointer"
                               }`}
                             >
                               {tamanho}
@@ -288,10 +286,10 @@ export default function PDV() {
 
                     <button
                       disabled={!podeAdicionar}
-                      onClick={() => handleAdicionarAoCarrinho(produto, 'arara')}
+                      onClick={() => handleAdicionarAoCarrinho(produto, corSelecionada, tamanhoSelecionado)}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
                         podeAdicionar
-                          ? "bg-[#00D66C] hover:bg-[#00b85c] text-white active:scale-95"
+                          ? "bg-[#00D66C] hover:bg-[#00b85c] text-white active:scale-95 cursor-pointer"
                           : "bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed"
                       }`}
                     >
@@ -311,7 +309,7 @@ export default function PDV() {
         <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-[90]">
           <button
             onClick={() => navigate("/pdv/carrinho")}
-            className="flex items-center gap-4 bg-[#812C65] text-white px-6 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/20 w-full max-w-xs sm:max-w-sm"
+            className="flex items-center gap-4 bg-[#812C65] text-white px-6 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/20 w-full max-w-xs sm:max-w-sm cursor-pointer"
           >
             <div className="relative bg-white/20 p-2 rounded-xl">
               <FiShoppingCart size={20} />
