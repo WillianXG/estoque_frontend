@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export interface Produto {
-  id_carrinho: string;   // A chave única (ex: "10-1-arara")
+  id_carrinho: string;   // Ex: "10-1-arara" ou "10-2-arara"
   id: number;            // ID do produto pai
   id_variante: number;   // ID da variante específica
   nome: string;
   tamanho: string;
-  variacao: string;
+  variacao: string;      // Cor / Modelo da variante
   origem: 'arara' | 'deposito';
   preco: number;
   imagem_url: string;
@@ -26,36 +26,36 @@ interface CarrinhoContextType {
 const CarrinhoContext = createContext<CarrinhoContextType | undefined>(undefined);
 
 export function CarrinhoProvider({ children }: { children: ReactNode }) {
-  // 🔹 Inicializa carrinho a partir do localStorage
   const [carrinho, setCarrinho] = useState<Produto[]>(() => {
     const carrinhoSalvo = localStorage.getItem("carrinho");
     return carrinhoSalvo ? JSON.parse(carrinhoSalvo) : [];
   });
 
-  // 🔹 Sempre que o carrinho mudar, salva no localStorage
   useEffect(() => {
     localStorage.setItem("carrinho", JSON.stringify(carrinho));
   }, [carrinho]);
 
-  // CORREÇÃO: Agora usamos p.id_carrinho para diferenciar tamanhos/origens
   function adicionar(produto: Produto): boolean {
     const item = carrinho.find(p => p.id_carrinho === produto.id_carrinho);
+    const qtdAdicionar = produto.quantidade || 1;
 
     if (item) {
-      if (item.quantidade >= item.estoque) return false;
+      if (item.quantidade + qtdAdicionar > item.estoque) return false;
 
       setCarrinho(prev =>
         prev.map(p =>
-          p.id_carrinho === produto.id_carrinho ? { ...p, quantidade: p.quantidade + 1 } : p
+          p.id_carrinho === produto.id_carrinho
+            ? { ...p, quantidade: p.quantidade + qtdAdicionar }
+            : p
         )
       );
 
       return true;
     }
 
-    if (produto.estoque <= 0) return false;
+    if (produto.estoque < qtdAdicionar) return false;
 
-    setCarrinho(prev => [...prev, { ...produto, quantidade: 1 }]);
+    setCarrinho(prev => [...prev, { ...produto, quantidade: qtdAdicionar }]);
     return true;
   }
 

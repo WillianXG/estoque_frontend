@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { useCarrinho } from "../context/CarrinhoContext";
-import Card from "../components/Card";
-import { FiX, FiShoppingCart, FiAlertCircle } from "react-icons/fi";
+import { FiShoppingCart } from "react-icons/fi";
 
 // --- INTERFACES ---
 interface Categoria { id: number; nome: string; }
@@ -15,6 +14,7 @@ interface Variante {
   tamanho: string;
   quantidade_arara: number;
   quantidade_deposito: number;
+  imagem_url?: string; // Suporte à imagem por variação
 }
 interface Produto {
   id: number;
@@ -32,7 +32,10 @@ export default function PDV() {
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<number | null>(null);
   const [subcategoriaSelecionada, setSubcategoriaSelecionada] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
+
+  // Estados para seleção no Card estilo E-commerce
+  const [variacoesSelecionadas, setVariacoesSelecionadas] = useState<{ [produtoId: number]: string }>({});
+  const [tamanhosSelecionados, setTamanhosSelecionados] = useState<{ [produtoId: number]: string }>({});
 
   const { adicionar, carrinho } = useCarrinho();
   const navigate = useNavigate();
@@ -53,7 +56,7 @@ export default function PDV() {
         preco: parseFloat(p.preco_venda) || 0,
         imagem_url: p.imagem_url || "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png",
         subcategoria_id: p.subcategoria_id,
-        variantes: p.variantes || [] // Garante que nunca seja null
+        variantes: p.variantes || []
       }));
 
       setProdutos(formatados);
@@ -71,27 +74,49 @@ export default function PDV() {
   const totalItens = carrinho.reduce((acc, item) => acc + item.quantidade, 0);
   const valorTotalCarrinho = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
 
-  const handleAdicionarVariante = (variante: Variante, origem: 'arara' | 'deposito') => {
-    if (!produtoSelecionado) return;
-    const estoqueDisponivel = origem === 'arara' ? variante.quantidade_arara : variante.quantidade_deposito;
+  const handleSelecionarCor = (produtoId: number, cor: string) => {
+    setVariacoesSelecionadas(prev => ({ ...prev, [produtoId]: cor }));
+    setTamanhosSelecionados(prev => ({ ...prev, [produtoId]: "" })); // Reseta tamanho ao trocar a cor
+  };
+
+  const handleSelecionarTamanho = (produtoId: number, tamanho: string) => {
+    setTamanhosSelecionados(prev => ({ ...prev, [produtoId]: tamanho }));
+  };
+
+  const handleAdicionarAoCarrinho = (produto: Produto, origem: 'arara' | 'deposito' = 'arara') => {
+    const cor = variacoesSelecionadas[produto.id];
+    const tamanho = tamanhosSelecionados[produto.id];
+
+    if (!cor || !tamanho) return;
+
+    const varianteEncontrada = produto.variantes.find(
+      v => v.variacao === cor && v.tamanho === tamanho
+    );
+
+    if (!varianteEncontrada) return;
+
+    const estoqueDisponivel = origem === 'arara' 
+      ? varianteEncontrada.quantidade_arara 
+      : varianteEncontrada.quantidade_deposito;
 
     if (estoqueDisponivel <= 0) return;
 
+    // Usa a imagem da variante, se existir, ou a imagem geral do produto
+    const imagemFinal = varianteEncontrada.imagem_url || produto.imagem_url;
+
     adicionar({
-      id_carrinho: `${produtoSelecionado.id}-${variante.id}-${origem}`,
-      id: produtoSelecionado.id,
-      id_variante: variante.id,
-      nome: produtoSelecionado.nome,
-      tamanho: variante.tamanho,
-      variacao: variante.variacao,
-      preco: produtoSelecionado.preco,
-      imagem_url: produtoSelecionado.imagem_url,
+      id_carrinho: `${produto.id}-${varianteEncontrada.id}-${origem}`,
+      id: produto.id,
+      id_variante: varianteEncontrada.id,
+      nome: produto.nome,
+      tamanho: varianteEncontrada.tamanho,
+      variacao: varianteEncontrada.variacao,
+      preco: produto.preco,
+      imagem_url: imagemFinal,
       quantidade: 1,
       origem: origem,
       estoque: estoqueDisponivel
     } as any);
-
-    setProdutoSelecionado(null);
   };
 
   const produtosFiltrados = produtos.filter((p) => {
@@ -106,12 +131,12 @@ export default function PDV() {
     : [];
 
   return (
-    <main className="min-h-screen p-4 sm:p-8 bg-gray-50 dark:bg-[#120514] transition-colors duration-300">
+    <main className="min-h-screen p-4 sm:p-8 bg-gray-100 dark:bg-[#120514] transition-colors duration-300">
 
       {/* HEADER */}
       <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-[#590C42] dark:text-[#E8B7D4] tracking-tight">PDV</h1>
+          <h1 className="text-4xl font-extrabold text-[#590C42] dark:text-[#E8B7D4] tracking-tight">Caixa Loja</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Fluxo de Venda Rápida</p>
         </div>
 
@@ -146,93 +171,139 @@ export default function PDV() {
           <div className="w-12 h-12 border-4 border-t-[#812C65] border-pink-200 rounded-full animate-spin"></div>
         </div>
       ) : (
-        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 pb-32">
-          {produtosFiltrados.map((produto) => (
-            <div
-              key={produto.id}
-              className="transform transition-all active:scale-95 cursor-pointer"
-              onClick={() => setProdutoSelecionado(produto)}
-            >
-              <Card
-                id={produto.id}
-                nome={produto.nome}
-                preco_venda={produto.preco}
-                imagem_url={produto.imagem_url}
-                quantidade_arara={produto.variantes.reduce((acc, v) => acc + v.quantidade_arara, 0)}
-                quantidade_deposito={produto.variantes.reduce((acc, v) => acc + v.quantidade_deposito, 0)}
-                quantidadeNoCarrinho={0}
-                onAdicionar={() => { setProdutoSelecionado(produto); return true; }}
-                onAumentar={() => true}
-                onDiminuir={() => true}
-              />
-            </div>
-          ))}
-        </section>
-      )}
+        <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-32">
+          {produtosFiltrados.map((produto) => {
+            const coresDisponiveis = Array.from(new Set(produto.variantes.map(v => v.variacao)));
+            const corSelecionada = variacoesSelecionadas[produto.id] || coresDisponiveis[0] || "";
 
-      {/* MODAL DE VARIANTES - CORREÇÃO AQUI */}
-      {produtoSelecionado && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setProdutoSelecionado(null)}></div>
+            const tamanhosDisponiveis = produto.variantes
+              .filter(v => v.variacao === corSelecionada)
+              .map(v => v.tamanho);
 
-          <div className="relative bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            {/* Header */}
-            <div className="p-6 bg-[#812C65] text-white">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-bold leading-tight">{produtoSelecionado.nome}</h2>
-                  <p className="text-pink-200 text-xs mt-1 uppercase tracking-widest font-bold">Selecione o Tamanho/Cor</p>
+            const tamanhoSelecionado = tamanhosSelecionados[produto.id] || "";
+
+            const varianteAtual = produto.variantes.find(
+              v => v.variacao === corSelecionada && v.tamanho === tamanhoSelecionado
+            );
+
+            // Busca se existe uma variante com essa cor que possua foto específica
+            const varianteComImagem = produto.variantes.find(
+              v => v.variacao === corSelecionada && v.imagem_url
+            );
+
+            // Define a imagem exibida no Card
+            const imagemExibida = varianteComImagem?.imagem_url || produto.imagem_url;
+
+            const temEstoque = varianteAtual 
+              ? (varianteAtual.quantidade_arara > 0 || varianteAtual.quantidade_deposito > 0)
+              : false;
+
+            const podeAdicionar = corSelecionada && tamanhoSelecionado && temEstoque;
+
+            return (
+              <div
+                key={produto.id}
+                className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col border border-gray-100 dark:border-gray-800"
+              >
+                {/* Imagem Dinâmica por Variação */}
+                <div className="relative h-64 w-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  <img
+                    src={imagemExibida}
+                    alt={produto.nome}
+                    className="w-full h-full object-cover transition-all duration-300"
+                  />
                 </div>
-                <button onClick={() => setProdutoSelecionado(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                  <FiX size={24} />
-                </button>
-              </div>
-            </div>
 
-            {/* Listagem */}
-            <div className="p-4 sm:p-6 max-h-[60vh] overflow-y-auto space-y-3">
-              {produtoSelecionado.variantes.length > 0 ? (
-                produtoSelecionado.variantes.map(v => (
-                  <div key={v.id} className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-black text-gray-700 dark:text-gray-200 uppercase">
-                        Tam: {v.tamanho}
+                {/* Info do Produto */}
+                <div className="p-4 flex flex-col flex-1 justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-lg line-clamp-1 mb-2">
+                      {produto.nome}
+                    </h3>
+
+                    {/* Seleção de Cor */}
+                    <div className="mb-3">
+                      <span className="text-[11px] font-extrabold text-gray-400 dark:text-gray-400 block mb-1 uppercase tracking-wider">
+                        Cor:
                       </span>
-                      <span className="text-[10px] font-bold text-gray-400 bg-white dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm uppercase">
-                        {v.variacao}
-                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {coresDisponiveis.map((cor) => {
+                          const ativa = corSelecionada === cor;
+                          return (
+                            <button
+                              key={cor}
+                              onClick={() => handleSelecionarCor(produto.id, cor)}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                                ativa
+                                  ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
+                                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                              }`}
+                            >
+                              {cor}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => handleAdicionarVariante(v, 'arara')}
-                        disabled={v.quantidade_arara <= 0}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl border-2 border-pink-100 dark:border-pink-900/20 hover:border-[#812C65] disabled:opacity-20 transition-all active:scale-95"
-                      >
-                        <span className="text-[9px] font-black text-gray-400 uppercase">Arara</span>
-                        <span className="text-lg font-black text-[#812C65] dark:text-pink-400">{v.quantidade_arara}</span>
-                      </button>
+                    {/* Seleção de Tamanho */}
+                    <div className="mb-4">
+                      <span className="text-[11px] font-extrabold text-gray-400 dark:text-gray-400 block mb-1 uppercase tracking-wider">
+                        Tamanho:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tamanhosDisponiveis.map((tamanho) => {
+                          const ativo = tamanhoSelecionado === tamanho;
+                          const varItem = produto.variantes.find(
+                            v => v.variacao === corSelecionada && v.tamanho === tamanho
+                          );
+                          const semEstoqueItem = !varItem || (varItem.quantidade_arara <= 0 && varItem.quantidade_deposito <= 0);
 
-                      <button
-                        onClick={() => handleAdicionarVariante(v, 'deposito')}
-                        disabled={v.quantidade_deposito <= 0}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl border-2 border-purple-100 dark:border-purple-900/20 hover:border-[#812C65] disabled:opacity-20 transition-all active:scale-95"
-                      >
-                        <span className="text-[9px] font-black text-gray-400 uppercase">Depósito</span>
-                        <span className="text-lg font-black text-purple-600 dark:text-purple-400">{v.quantidade_deposito}</span>
-                      </button>
+                          return (
+                            <button
+                              key={tamanho}
+                              disabled={semEstoqueItem}
+                              onClick={() => handleSelecionarTamanho(produto.id, tamanho)}
+                              className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                                semEstoqueItem
+                                  ? "bg-gray-100 text-gray-300 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed line-through"
+                                  : ativo
+                                  ? "bg-[#00D66C] text-white shadow-sm"
+                                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                              }`}
+                            >
+                              {tamanho}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <FiAlertCircle size={48} className="text-amber-500 mb-2" />
-                  <p className="text-gray-500 font-bold">Nenhum estoque disponível para este produto.</p>
+
+                  {/* Preço e Botão de Adicionar */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <span className="text-xl font-extrabold text-[#00D66C]">
+                      R$ {produto.preco.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+
+                    <button
+                      disabled={!podeAdicionar}
+                      onClick={() => handleAdicionarAoCarrinho(produto, 'arara')}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                        podeAdicionar
+                          ? "bg-[#00D66C] hover:bg-[#00b85c] text-white active:scale-95"
+                          : "bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed"
+                      }`}
+                    >
+                      <FiShoppingCart size={14} />
+                      Adicionar
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            );
+          })}
+        </section>
       )}
 
       {/* BARRA DE CARRINHO FIXA */}

@@ -18,9 +18,10 @@ export default function Sidebar({ isOpen, onClose }: Props) {
     { path: "/produtos", name: "Produtos", roles: ["admin"] },
     { path: "/vendas", name: "Vendas", roles: ["admin"] },
     { path: "/vendedoras", name: "Vendedoras", roles: ["admin"] },
-    { path: "/pdv", name: "PDV", roles: ["admin", "vendedora"] },
+    { path: "/pdv", name: "Caixa Loja", roles: ["admin", "vendedora"] },
     { path: "/estoque", name: "Estoque", roles: ["admin", "vendedora"] },
     { path: "/MovimentacaoEstoque", name: "Movimentação de Estoque", roles: ["admin"] },
+    { path: "/GestaoPedidos", name: "Pedidos Online", roles: ["admin"] },
   ];
 
   const allowedRoutes = routes.filter((route) =>

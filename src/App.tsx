@@ -15,6 +15,7 @@ import Estoque from "./pages/Estoque";
 import MovimentacaoPage from "./pages/MovimentacaoEstoque";
 import Caixa  from "./pages/Caixa";
 import HistoricoCaixaPage from "./pages/HistoricoCaixa";
+import GestaoPedidos from "./pages/GestaoPedidos";
 
 function App() {
   return (
@@ -131,6 +132,15 @@ function App() {
                 element={
                   <PrivateRoute roles={["admin"]}>
                     <HistoricoCaixaPage />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/GestaoPedidos"
+                element={
+                  <PrivateRoute roles={["admin"]}>
+                    <GestaoPedidos />
                   </PrivateRoute>
                 }
               />

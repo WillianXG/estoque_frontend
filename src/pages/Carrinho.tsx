@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from "react";
 import { useCarrinho } from "../context/CarrinhoContext";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +7,9 @@ import {
   FiArrowLeft,
   FiTruck,
   FiShoppingBag,
-  FiCheckCircle
+  FiCheckCircle,
+  FiPlus,
+  FiMinus
 } from "react-icons/fi";
 
 interface Regiao {
@@ -18,7 +19,7 @@ interface Regiao {
 }
 
 export default function Carrinho() {
-  const { carrinho, remover, limpar } = useCarrinho();
+  const { carrinho, remover, limpar, aumentar, diminuir } = useCarrinho();
   const [formaPagamento, setFormaPagamento] = useState("");
   const [canalVenda, setCanalVenda] = useState("");
   const [observacao, setObservacao] = useState("");
@@ -127,7 +128,7 @@ export default function Carrinho() {
                 <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Seu Carrinho ({carrinho.length})</span>
             </div>
             
-            {carrinho.map((item: any) => (
+            {carrinho.map((item) => (
               <div
                 key={item.id_carrinho}
                 className="bg-white dark:bg-[#2A102D] border border-gray-100 dark:border-white/5 p-4 rounded-3xl flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow group"
@@ -142,14 +143,14 @@ export default function Carrinho() {
                   </h3>
 
                   <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {item.variacao && (
+                      <span className="px-3 py-1 bg-[#812C65] text-white rounded-lg text-[10px] font-black uppercase shadow-sm">
+                        VARIAÇÃO: {item.variacao}
+                      </span>
+                    )}
                     <span className="px-3 py-1 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 rounded-lg text-[10px] font-black uppercase border dark:border-white/10">
                       TAM: {item.tamanho}
                     </span>
-                    {item.variacao && (
-                      <span className="px-3 py-1 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 rounded-lg text-[10px] font-black uppercase border dark:border-white/10">
-                        {item.variacao}
-                      </span>
-                    )}
                     <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${item.origem === 'arara'
                       ? 'bg-pink-50 border-pink-100 dark:bg-pink-900/20 dark:border-pink-900/30 text-pink-600 dark:text-pink-400'
                       : 'bg-purple-50 border-purple-100 dark:bg-purple-900/20 dark:border-purple-900/30 text-purple-600 dark:text-purple-400'
@@ -160,9 +161,26 @@ export default function Carrinho() {
 
                   <div className="flex items-center justify-between mt-4">
                     <p className="text-2xl font-black text-[#812C65] dark:text-[#E8B7D4]">
-                        <span className="text-sm font-normal text-gray-400 mr-1">{item.quantidade}x</span>
-                        R$ {item.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(item.preco * item.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
+
+                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#120514] p-1 rounded-xl border dark:border-white/10">
+                      <button
+                        onClick={() => diminuir(item.id_carrinho)}
+                        className="p-1 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors"
+                      >
+                        <FiMinus size={16} />
+                      </button>
+                      <span className="px-2 font-bold text-sm text-gray-800 dark:text-white">
+                        {item.quantidade}
+                      </span>
+                      <button
+                        onClick={() => aumentar(item.id_carrinho)}
+                        className="p-1 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors"
+                      >
+                        <FiPlus size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -202,7 +220,7 @@ export default function Carrinho() {
                 <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Método de Pagamento</label>
                     <div className="grid grid-cols-1 gap-2">
-                        {["Dinheiro", "Pix", "Cartão Credito"].map((metodo) => (
+                        {["Dinheiro", "Pix", "Cartão Credito", "Cartão Debito"].map((metodo) => (
                             <button
                                 key={metodo}
                                 onClick={() => setFormaPagamento(metodo)}
