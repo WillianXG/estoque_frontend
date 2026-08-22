@@ -233,7 +233,7 @@ export default function PDV() {
                               onClick={() => handleSelecionarCor(produto.id, cor)}
                               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                                 ativa
-                                  ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
+                                  ? "bg-[#590C42] text-white dark:bg-[#E8B7D4] dark:text-[#590C42] shadow-sm"
                                   : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                               }`}
                             >
@@ -266,7 +266,7 @@ export default function PDV() {
                                 semEstoqueItem
                                   ? "bg-gray-100 text-gray-300 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed line-through"
                                   : ativo
-                                  ? "bg-[#00D66C] text-white shadow-sm cursor-pointer"
+                                  ? "bg-[#812C65] text-white shadow-sm cursor-pointer"
                                   : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 cursor-pointer"
                               }`}
                             >
@@ -280,7 +280,7 @@ export default function PDV() {
 
                   {/* Preço e Botão de Adicionar */}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <span className="text-xl font-extrabold text-[#00D66C]">
+                    <span className="text-xl font-extrabold text-[#590C42] dark:text-[#E8B7D4]">
                       R$ {produto.preco.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
 
@@ -289,7 +289,7 @@ export default function PDV() {
                       onClick={() => handleAdicionarAoCarrinho(produto, corSelecionada, tamanhoSelecionado)}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
                         podeAdicionar
-                          ? "bg-[#00D66C] hover:bg-[#00b85c] text-white active:scale-95 cursor-pointer"
+                          ? "bg-[#812C65] hover:bg-[#590C42] text-white active:scale-95 cursor-pointer"
                           : "bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed"
                       }`}
                     >
@@ -309,7 +309,7 @@ export default function PDV() {
         <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-[90]">
           <button
             onClick={() => navigate("/pdv/carrinho")}
-            className="flex items-center gap-4 bg-[#812C65] text-white px-6 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/20 w-full max-w-xs sm:max-w-sm cursor-pointer"
+            className="flex items-center gap-4 bg-[#812C65] hover:bg-[#590C42] text-white px-6 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/20 w-full max-w-xs sm:max-w-sm cursor-pointer"
           >
             <div className="relative bg-white/20 p-2 rounded-xl">
               <FiShoppingCart size={20} />
